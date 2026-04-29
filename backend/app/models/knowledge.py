@@ -26,7 +26,7 @@ class Document(Base, TimestampMixin):
     __tablename__ = "documents"
 
     id = Column(Integer, primary_key=True, index=True)
-    file_path = Column(String(255), nullable=False)  # Path in MinIO
+    file_path = Column(String(255), nullable=False)  # Path in local storage
     file_name = Column(String(255), nullable=False)  # Actual file name
     file_size = Column(BigInteger, nullable=False)  # File size in bytes
     content_type = Column(String(100), nullable=False)  # MIME type

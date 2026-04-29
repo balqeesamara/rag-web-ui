@@ -11,7 +11,7 @@ A self-hosted knowledge base Q&A system using 3-leg hybrid retrieval (dense vect
 
 ┏━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━━┓
 ┃  FRONTEND   ┃   BACKEND    ┃  VECTOR DB  ┃   STORAGE    ┃
-┃ (Next.js)   ┃ (FastAPI )   ┃ (Qdrant)    ┃ (MinIO)      ┃
+┃ (Next.js)   ┃ (FastAPI )   ┃ (Qdrant)    ┃ (Local FS)   ┃
 ┗━━━━━━━━━━━━━┻━━━━━━━━━━━━━━┻━━━━━━━━━━━━━┻━━━━━━━━━━━━━━┛
 
 ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -86,7 +86,7 @@ app/
 │   ├── dense.py         # Qdrant vector search
 │   ├── splade.py       # FastEmbed SPLADE sparse embedder
 │   └── exact.py        # MySQL full-text search
-├── storage/             # MinIO file handling (uploads/downloads)
+├── storage/             # Local filesystem handling (uploads/downloads)
 └── services/            # Chunking, embedding orchestration
 ```
 
@@ -95,7 +95,7 @@ app/
 - **Backend container** (`uvicorn` + `gunicorn` for production)
 - **Qdrant** (vector database with hybrid support built-in)
 - **MySQL 8.0** (payload storage + exact match queries)
-- **MinIO** (object storage for file uploads/downloads)
+- **Local filesystem** (file uploads/downloads via mounted volume)
 
 ### Configuration Flow
 
@@ -129,7 +129,7 @@ Each component isolated; easy scaling of Qdrant or MySQL without touching the Py
 | Backend | Python FastAPI, LangChain, SQLAlchemy |
 | Vector DB | Qdrant (dense + sparse vectors) |
 | Sparse Embeddings | SPLADE via FastEmbed (CPU, local) |
-| File Storage | MinIO |
+| File Storage | Local filesystem (mounted volume) |
 | Database | MySQL 8 |
 
 ## Quick Start

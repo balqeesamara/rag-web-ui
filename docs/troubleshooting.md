@@ -9,7 +9,6 @@ Quick reference for the web UIs available in development:
 | RAG Web UI | http://localhost:3000 | Your registered account |
 | Backend API Docs | http://localhost:8000/redoc | — |
 | Qdrant Dashboard | http://localhost:6333/dashboard | — (no login) |
-| MinIO Console | http://localhost:9001 | `minioadmin` / `minioadmin` |
 | Adminer (MySQL) | http://localhost:8080 | Server: `db`, User: `ragwebui`, Pass: `ragwebui`, DB: `ragwebui` |
 
 Start Adminer if it's not running:

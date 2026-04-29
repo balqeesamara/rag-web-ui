@@ -10,7 +10,6 @@ echo "Removing data directories..."
 rm -rf \
   "$SCRIPT_DIR/docker-data/mysql" \
   "$SCRIPT_DIR/docker-data/qdrant" \
-  "$SCRIPT_DIR/docker-data/minio" \
   "$SCRIPT_DIR/uploads"
 
 echo "Recreating empty upload dir..."
