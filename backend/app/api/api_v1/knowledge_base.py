@@ -483,6 +483,113 @@ async def get_processing_tasks(
         for task in tasks
     }
 
+@router.delete("/{kb_id}/documents/{doc_id}")
+async def delete_document(
+    *,
+    db: Session = Depends(get_db),
+    kb_id: int,
+    doc_id: int,
+    current_user: User = Depends(get_current_user)
+) -> Any:
+    """
+    Delete a single document and all its associated data:
+    - Physical file from local storage
+    - All chunk vectors from Qdrant
+    - All chunk records from MySQL
+    - Processing task records from MySQL
+    - The document record itself from MySQL
+    """
+    from app.services.document_processor import _chunk_id_to_point_id
+    from qdrant_client.models import PointIdsList
+
+    # Verify the KB belongs to this user
+    kb = (
+        db.query(KnowledgeBase)
+        .filter(
+            KnowledgeBase.id == kb_id,
+            KnowledgeBase.user_id == current_user.id
+        )
+        .first()
+    )
+    if not kb:
+        raise HTTPException(status_code=404, detail="Knowledge base not found")
+
+    document = (
+        db.query(Document)
+        .filter(
+            Document.id == doc_id,
+            Document.knowledge_base_id == kb_id
+        )
+        .first()
+    )
+    if not document:
+        raise HTTPException(status_code=404, detail="Document not found")
+
+    cleanup_warnings = []
+
+    try:
+        # 1. Collect chunk IDs before deleting them (needed for Qdrant point IDs)
+        chunk_ids = [
+            c.id for c in
+            db.query(DocumentChunk.id)
+            .filter(
+                DocumentChunk.document_id == doc_id,
+                DocumentChunk.kb_id == kb_id
+            )
+            .all()
+        ]
+
+        # 2. Delete vectors from Qdrant
+        if chunk_ids:
+            try:
+                qdrant = QdrantClient(host=settings.QDRANT_HOST, port=settings.QDRANT_PORT)
+                point_ids = [_chunk_id_to_point_id(cid) for cid in chunk_ids]
+                qdrant.delete(
+                    collection_name=f"kb_{kb_id}",
+                    points_selector=PointIdsList(points=point_ids),
+                )
+                logger.info(f"Deleted {len(point_ids)} Qdrant points for document {doc_id}")
+            except Exception as e:
+                cleanup_warnings.append(f"Qdrant cleanup warning: {str(e)}")
+                logger.error(f"Failed to delete Qdrant points for document {doc_id}: {e}")
+
+        # 3. Delete chunk rows from MySQL (explicit, don't rely on cascade here
+        #    since we already fetched the IDs and want the delete to be transactional)
+        db.query(DocumentChunk).filter(
+            DocumentChunk.document_id == doc_id,
+            DocumentChunk.kb_id == kb_id
+        ).delete(synchronize_session=False)
+
+        # 4. Delete processing task records for this document
+        db.query(ProcessingTask).filter(
+            ProcessingTask.document_id == doc_id
+        ).delete(synchronize_session=False)
+
+        # 5. Delete the physical file from local storage
+        try:
+            delete_file(document.file_path)
+            logger.info(f"Deleted file from storage: {document.file_path}")
+        except Exception as e:
+            cleanup_warnings.append(f"File storage cleanup warning: {str(e)}")
+            logger.error(f"Failed to delete file {document.file_path}: {e}")
+
+        # 6. Delete the document record itself
+        db.delete(document)
+        db.commit()
+
+        logger.info(f"Document {doc_id} deleted from KB {kb_id}")
+
+        response = {"message": f"Document '{document.file_name}' deleted successfully"}
+        if cleanup_warnings:
+            response["warnings"] = cleanup_warnings
+        return response
+
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Failed to delete document {doc_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to delete document: {str(e)}")
+
+
 @router.get("/{kb_id}/documents/{doc_id}", response_model=DocumentResponse)
 async def get_document(
     *,

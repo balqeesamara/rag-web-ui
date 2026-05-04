@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { api, ApiError } from "@/lib/api";
 import { FileIcon, defaultStyles } from "react-file-icon";
@@ -13,7 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { FileText } from "lucide-react";
+import { FileText, Trash2 } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
 
 interface Document {
   id: number;
@@ -44,6 +46,8 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchDocuments = async () => {
@@ -63,6 +67,30 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
 
     fetchDocuments();
   }, [knowledgeBaseId]);
+
+  const handleDelete = async (doc: Document) => {
+    if (!confirm(`Delete "${doc.file_name}"? This will remove the file and all its indexed chunks.`)) {
+      return;
+    }
+    setDeletingId(doc.id);
+    try {
+      await api.delete(`/api/knowledge-base/${knowledgeBaseId}/documents/${doc.id}`);
+      setDocuments((prev) => prev.filter((d) => d.id !== doc.id));
+      toast({
+        title: "Document deleted",
+        description: `"${doc.file_name}" has been removed.`,
+      });
+    } catch (error) {
+      const msg = error instanceof ApiError ? error.message : "Failed to delete document";
+      toast({
+        title: "Delete failed",
+        description: msg,
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   if (loading) {
     return (
@@ -111,6 +139,7 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
           <TableHead>Size</TableHead>
           <TableHead>Created</TableHead>
           <TableHead>Status</TableHead>
+          <TableHead className="w-16"></TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -149,15 +178,31 @@ export function DocumentList({ knowledgeBaseId }: DocumentListProps) {
                 <Badge
                   variant={
                     doc.processing_tasks[0].status === "completed"
-                      ? "secondary" // Green for completed
+                      ? "secondary"
                       : doc.processing_tasks[0].status === "failed"
-                      ? "destructive" // Red for failed
-                      : "default" // Default for pending/processing
+                      ? "destructive"
+                      : "default"
                   }
                 >
                   {doc.processing_tasks[0].status}
                 </Badge>
               )}
+            </TableCell>
+            <TableCell>
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={deletingId === doc.id}
+                onClick={() => handleDelete(doc)}
+                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                title="Delete document"
+              >
+                {deletingId === doc.id ? (
+                  <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+              </Button>
             </TableCell>
           </TableRow>
         ))}

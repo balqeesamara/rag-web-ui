@@ -17,6 +17,7 @@ class Chat(Base, TimestampMixin):
     id = Column(Integer, primary_key=True, index=True)
     title = Column(String(255), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    history_summary = Column(LONGTEXT, nullable=True)  # rolling summary of messages beyond the sliding window
 
     # Relationships
     messages = relationship("Message", back_populates="chat", cascade="all, delete-orphan")

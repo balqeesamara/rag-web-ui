@@ -229,20 +229,27 @@ export const Answer: FC<{
   citationInfoMapRef.current = citationInfoMap;
 
   const parsedContent = useMemo(() => {
-    const completeMatch = markdown.match(/^<think>([\s\S]*?)<\/think>([\s\S]*)$/);
+    // Non-anchored: handles models that emit text before <think> (preamble)
+    const completeMatch = markdown.match(/([\s\S]*?)<think>([\s\S]*?)<\/think>([\s\S]*)$/);
     if (completeMatch) {
+      const preamble = completeMatch[1];
+      const thinkContent = completeMatch[2].trim();
+      const afterThink = completeMatch[3].trim();
       return {
-        thinkContent: completeMatch[1].trim(),
+        thinkContent,
         isThinkingComplete: true,
-        answerText: completeMatch[2].trim(),
+        // Preserve any preamble text before the <think> block
+        answerText: preamble ? `${preamble.trim()}\n\n${afterThink}`.trim() : afterThink,
       };
     }
-    const openMatch = markdown.match(/^<think>([\s\S]*)$/);
+    // <think> opened but not yet closed — still streaming
+    const openMatch = markdown.match(/([\s\S]*?)<think>([\s\S]*)$/);
     if (openMatch) {
+      const preamble = openMatch[1];
       return {
-        thinkContent: openMatch[1],
+        thinkContent: openMatch[2],
         isThinkingComplete: false,
-        answerText: "",
+        answerText: preamble.trim(),
       };
     }
     return { thinkContent: null, isThinkingComplete: false, answerText: markdown };
