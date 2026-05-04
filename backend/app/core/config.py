@@ -57,6 +57,23 @@ class Settings(BaseSettings):
     # ── Retrieval ──────────────────────────────────────────────────────────────
     RETRIEVAL_TOP_K: int = int(os.getenv("RETRIEVAL_TOP_K", "6"))
 
+    # ── Chunking ────────────────────────────────────────────────────────────────
+    # WARNING: changing these values after documents have been ingested creates
+    # inconsistent chunk sizes across the knowledge base. If you change them,
+    # delete and re-upload all existing documents to re-index with the new settings.
+    #
+    # CHUNK_SIZE: target chunk size in characters. Keep <= 1800 chars when using
+    # SPLADE (prithivida/Splade_PP_en_v1) — BERT's 512-token limit means longer
+    # chunks are silently truncated in the sparse leg (~4 chars/token for English).
+    CHUNK_SIZE: int = int(os.getenv("CHUNK_SIZE", "1500"))
+    # OVERLAP_PERCENTAGE: fraction of CHUNK_SIZE repeated at the start of the next
+    # chunk (0.0–1.0). 0.20 = 20% overlap = 300 chars at CHUNK_SIZE=1500.
+    OVERLAP_PERCENTAGE: float = float(os.getenv("OVERLAP_PERCENTAGE", "0.20"))
+
+    @property
+    def chunk_overlap(self) -> int:
+        return int(self.CHUNK_SIZE * self.OVERLAP_PERCENTAGE)
+
     # RRF weights for each leg. Weights don't need to sum to 1; they are
     # relative multipliers on the RRF term 1/(k + rank).
     HYBRID_DENSE_WEIGHT: float = float(os.getenv("HYBRID_DENSE_WEIGHT", "0.5"))

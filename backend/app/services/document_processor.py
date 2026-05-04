@@ -170,9 +170,18 @@ class PreviewResult(BaseModel):
     chunks: List[TextChunk]
     total_chunks: int
 
-async def process_document(file_path: str, file_name: str, kb_id: int, document_id: int, chunk_size: int = 1000, chunk_overlap: int = 200) -> None:
+async def process_document(file_path: str, file_name: str, kb_id: int, document_id: int, chunk_size: int = None, chunk_overlap: int = None) -> None:
     """Process document and store in vector database with incremental updates"""
     logger = logging.getLogger(__name__)
+    # Use env-configured defaults when callers do not supply explicit values.
+    # WARNING: chunk_size and chunk_overlap must stay consistent across all
+    # documents in a knowledge base. Do not change CHUNK_SIZE / OVERLAP_PERCENTAGE
+    # in .env after documents have been ingested — re-upload existing documents
+    # to re-index them with the new settings.
+    if chunk_size is None:
+        chunk_size = settings.CHUNK_SIZE
+    if chunk_overlap is None:
+        chunk_overlap = settings.chunk_overlap
     
     try:
         preview_result = await preview_document(file_path, chunk_size, chunk_overlap)
@@ -281,8 +290,12 @@ async def upload_document(file: UploadFile, kb_id: int, user_id: int) -> UploadR
         file_hash=file_hash
     )
 
-async def preview_document(file_path: str, chunk_size: int = 1000, chunk_overlap: int = 200) -> PreviewResult:
+async def preview_document(file_path: str, chunk_size: int = None, chunk_overlap: int = None) -> PreviewResult:
     """Step 2: Generate preview chunks"""
+    if chunk_size is None:
+        chunk_size = settings.CHUNK_SIZE
+    if chunk_overlap is None:
+        chunk_overlap = settings.chunk_overlap
     _, ext = os.path.splitext(file_path)
     ext = ext.lower()
 
@@ -331,11 +344,20 @@ async def process_document_background(
     task_id: int,
     db: Session = None,
     user_id: int = None,
-    chunk_size: int = 1000,
-    chunk_overlap: int = 200
+    chunk_size: int = None,
+    chunk_overlap: int = None
 ) -> None:
     """Process document in background"""
     logger = logging.getLogger(__name__)
+    # Use env-configured defaults when callers do not supply explicit values.
+    # WARNING: chunk_size and chunk_overlap must stay consistent across all
+    # documents in a knowledge base. Do not change CHUNK_SIZE / OVERLAP_PERCENTAGE
+    # in .env after documents have been ingested — re-upload existing documents
+    # to re-index them with the new settings.
+    if chunk_size is None:
+        chunk_size = settings.CHUNK_SIZE
+    if chunk_overlap is None:
+        chunk_overlap = settings.chunk_overlap
     logger.info(f"Starting background processing for task {task_id}, file: {file_name}")
 
     # if we don't pass in db, create a new database session

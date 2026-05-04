@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { FileIcon, defaultStyles } from "react-file-icon";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -104,9 +104,19 @@ export function DocumentUploadSteps({
     [key: number]: TaskStatus;
   }>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [chunkSize, setChunkSize] = useState(1000);
-  const [chunkOverlap, setChunkOverlap] = useState(200);
+  const [chunkSize, setChunkSize] = useState(1500);
+  const [chunkOverlap, setChunkOverlap] = useState(300);
   const { toast } = useToast();
+
+  // Fetch server-side chunk defaults from .env so the UI stays in sync.
+  useEffect(() => {
+    api.get("/api/config").then((data: any) => {
+      setChunkSize(data.chunk_size);
+      setChunkOverlap(data.chunk_overlap);
+    }).catch(() => {
+      // Non-fatal — fall back to hardcoded defaults if the endpoint fails.
+    });
+  }, []);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setFiles((prev) => [
@@ -513,7 +523,7 @@ export function DocumentUploadSteps({
                   <AccordionContent>
                     <div className="grid gap-4 md:grid-cols-2 pt-4">
                       <div className="space-y-2">
-                        <Label htmlFor="chunk-size">Chunk Size (tokens)</Label>
+                        <Label htmlFor="chunk-size">Chunk Size (characters)</Label>
                         <Input
                           id="chunk-size"
                           type="number"
@@ -525,7 +535,7 @@ export function DocumentUploadSteps({
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="chunk-overlap">
-                          Chunk Overlap (tokens)
+                          Chunk Overlap (characters)
                         </Label>
                         <Input
                           id="chunk-overlap"
@@ -537,6 +547,12 @@ export function DocumentUploadSteps({
                         />
                       </div>
                     </div>
+                    <p className="mt-3 text-xs text-amber-600 dark:text-amber-400">
+                      These settings apply to this preview only and do not affect
+                      actual ingestion. Ingestion always uses the values set in{" "}
+                      <code className="font-mono">.env</code> (
+                      CHUNK_SIZE&nbsp;/&nbsp;OVERLAP_PERCENTAGE).
+                    </p>
                   </AccordionContent>
                 </AccordionItem>
               </Accordion>

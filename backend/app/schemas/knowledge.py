@@ -81,5 +81,8 @@ class KnowledgeBaseResponse(KnowledgeBaseBase):
 
 class PreviewRequest(BaseModel):
     document_ids: List[int]
-    chunk_size: int = 1000
-    chunk_overlap: int = 200 
+    # When omitted the server uses CHUNK_SIZE / OVERLAP_PERCENTAGE from .env.
+    # Explicitly passing values here overrides the defaults for this preview only
+    # and does NOT affect what is used during actual ingestion.
+    chunk_size: Optional[int] = None
+    chunk_overlap: Optional[int] = None 

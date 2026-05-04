@@ -2,11 +2,15 @@
 
 ## Overview
 
-Retrieval uses a **hybrid** pipeline: BM25 sparse keyword search combined with ChromaDB dense vector similarity, fused via Reciprocal Rank Fusion (RRF). This covers the failure modes of each method individually:
+Retrieval uses a **3-leg hybrid pipeline** fused with Reciprocal Rank Fusion (RRF):
 
-- Dense search excels at semantic similarity (synonyms, paraphrases) but misses exact keyword matches.
-- BM25 excels at exact keyword matches (product codes, names, numbers) but misses paraphrase relationships.
-- RRF merges both ranked lists without requiring scores to be on the same scale.
+- **Leg 1 — Dense**: Qdrant cosine-similarity search on OpenAI-compatible embeddings
+- **Leg 2 — Sparse**: Qdrant learned-sparse search (SPLADE via FastEmbed, CPU-local)
+- **Leg 3 — Exact**: MySQL InnoDB FULLTEXT search (BM25/TF-IDF, server-side)
+
+All three legs run independently; their ranked lists are merged by weighted RRF. Each leg covers the failure modes of the others: dense handles paraphrases/synonyms, sparse captures term-frequency signal for technical vocabulary, exact matches product codes and precise keywords that embeddings may blur.
+
+Individual legs can be disabled via `.env` without re-indexing — ingestion always writes to all three stores.
 
 ---
 
@@ -20,9 +24,11 @@ User query
     │
     ▼
 [retrieval.py] hybrid_search()
-    ├── _dense_search()   → ChromaDB cosine similarity → Dict[hash, _Candidate]
-    ├── _bm25_search()    → BM25Okapi over MySQL chunks → Dict[hash, _Candidate]
-    └── _rrf_merge()      → RRF score → top-K LangchainDocuments
+    ├── _dense_search()          → Qdrant cosine similarity (dense vectors)
+    ├── _qdrant_sparse_search()  → Qdrant SPLADE sparse vectors
+    └── _exact_search()          → MySQL InnoDB FULLTEXT (NATURAL LANGUAGE MODE)
+    │          ↓
+    └── _rrf_merge()  → weighted RRF score → top-K LangchainDocuments
     │
     ▼
 [chat_service.py] Build prompt → stream LLM response
@@ -35,8 +41,8 @@ User query
 | File | Role |
 |------|------|
 | `backend/app/services/retrieval.py` | Complete hybrid search implementation |
-| `backend/app/services/chat_service.py` | Calls `hybrid_search()`, handles context streaming |
-| `backend/app/core/config.py` | All tunable parameters |
+| `backend/app/services/chat_service.py` | Calls `hybrid_search()`, builds prompt, streams response |
+| `backend/app/core/config.py` | All tunable retrieval parameters |
 | `.env` / `.env.example` | Runtime configuration |
 
 ---
@@ -48,90 +54,101 @@ User query
 `backend/app/services/retrieval.py`
 
 ```python
-async def hybrid_search(query, kb_ids, db, vector_stores) -> List[LangchainDocument]:
+async def hybrid_search(query, kb_ids, db) -> List[LangchainDocument]:
     top_k = settings.RETRIEVAL_TOP_K
-    pool = top_k * 4   # each leg fetches 4× top_k so RRF has room to rerank
+    pool = top_k * 4   # each leg over-fetches so RRF has room to rerank
 
-    dense  = _dense_search(query, vector_stores, pool)
-    sparse = _bm25_search(query, kb_ids, db, pool)
-    return _rrf_merge(dense, sparse, top_k)
+    dense         = _dense_search(query, kb_ids, pool)          if enabled["dense"]          else {}
+    qdrant_sparse = _qdrant_sparse_search(query, kb_ids, pool)  if enabled["qdrant_sparse"]  else {}
+    exact         = _exact_search(query, kb_ids, db, pool)      if enabled["exact"]          else {}
+
+    return _rrf_merge(dense, qdrant_sparse, exact, top_k)
 ```
 
-`pool = top_k * 4` ensures that a document ranked #20 by one leg but #1 by the other is not prematurely discarded before the merge.
+`pool = top_k * 4` ensures a document ranked #20 by one leg but #1 by another is not discarded before the merge.
 
 ---
 
 ### Dense leg — `_dense_search()`
 
-Queries every knowledge base's ChromaDB collection using cosine distance. ChromaDB returns `(document, distance)` pairs where distance is on the range `[0, 2]` (0 = identical vectors, 2 = opposite).
+Embeds the query with the configured OpenAI-compatible embedding model, then queries each knowledge base's Qdrant collection using cosine distance on the `dense` named vector.
 
 ```python
-def _dense_search(query, vector_stores, candidates):
-    all_pairs = []
-    for vs in vector_stores:
-        all_pairs.extend(vs.similarity_search_with_score(query, k=candidates))
+response = _get_openai_client().embeddings.create(input=query, model=settings.OPENAI_EMBEDDINGS_MODEL)
+query_vector = response.data[0].embedding
 
-    all_pairs.sort(key=lambda pair: pair[1])   # ascending: best match first
-
-    max_distance = settings.HYBRID_MAX_DENSE_DISTANCE
-    result = {}
-    rank = 0
-    for doc, distance in all_pairs:
-        if distance > max_distance:
-            break   # sorted list — all remaining are farther away
-        h = _content_hash(doc.page_content)
-        if h not in result:
-            result[h] = _Candidate(doc=doc, content_hash=h, dense_rank=rank)
-            rank += 1
-    return result
+hits = _get_qdrant_client().query_points(
+    collection_name=f"kb_{kb_id}",
+    query=query_vector,
+    using="dense",
+    limit=candidates,
+    with_payload=True,
+).points
 ```
 
-`HYBRID_MAX_DENSE_DISTANCE` acts as a hard cutoff. Documents beyond it carry no meaningful semantic signal and are excluded before the merge. The default `2.0` keeps everything; set it lower (e.g. `1.2`) to be selective.
+Qdrant returns scored points; they are ranked in arrival order (Qdrant returns results sorted by score descending).
 
 ---
 
-### Sparse leg — `_bm25_search()`
+### Sparse leg — `_qdrant_sparse_search()`
 
-Loads all `DocumentChunk` rows for the requested knowledge bases from MySQL, builds a `BM25Okapi` index in memory, and scores every chunk against the query.
+Embeds the query with the FastEmbed SPLADE model to produce a sparse (indices + values) vector, then queries Qdrant's `sparse` named vector index.
 
 ```python
-def _bm25_search(query, kb_ids, db, candidates):
-    chunks = db.query(DocumentChunk).filter(DocumentChunk.kb_id.in_(kb_ids)).all()
-    texts  = [(chunk.chunk_metadata or {}).get("page_content", "") for chunk in chunks]
+sparse_emb = next(iter(_get_sparse_embedder().embed([query])))
+query_sparse = SparseVector(
+    indices=sparse_emb.indices.tolist(),
+    values=sparse_emb.values.tolist(),
+)
 
-    bm25   = BM25Okapi([t.lower().split() for t in texts])
-    scores = bm25.get_scores(query.lower().split())
-
-    ranked_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
-
-    result = {}
-    rank = 0
-    for idx in ranked_indices:
-        if scores[idx] == 0:
-            break   # no query-term overlap — stop here
-        ...
-        result[h] = _Candidate(..., sparse_rank=rank)
-        rank += 1
+hits = _get_qdrant_client().query_points(
+    collection_name=f"kb_{kb_id}",
+    query=query_sparse,
+    using="sparse",
+    limit=candidates,
+    with_payload=True,
+).points
 ```
 
-**Why stop at score == 0?**
-BM25 = 0 is an absolute zero — the document shares no tokens with the query at all. Assigning it a rank position (e.g. rank 500) would inject a tiny but non-zero sparse score into the RRF merge that the document does not deserve. The `break` keeps the sparse leg semantically meaningful: every document that receives a sparse rank matched at least one query term.
+SPLADE produces term-weighted sparse vectors in BERT vocabulary space. These capture TF-IDF-like signal with learned expansion, beating raw BM25 on recall while remaining interpretable.
 
-This is **not** the same as excluding the document from results — it only means it contributes 0 from the sparse leg. It can still be returned if the dense leg ranks it highly (see the four cases below).
+---
+
+### Exact leg — `_exact_search()`
+
+MySQL InnoDB FULLTEXT search in `NATURAL LANGUAGE MODE`, which applies server-side BM25/TF-IDF ranking. No client-side index to build or maintain.
+
+```python
+sql = text("""
+    SELECT chunk_text, chunk_metadata,
+           MATCH(chunk_text) AGAINST(:query IN NATURAL LANGUAGE MODE) AS fts_score
+    FROM   document_chunks
+    WHERE  kb_id IN :kb_ids
+      AND  MATCH(chunk_text) AGAINST(:query IN NATURAL LANGUAGE MODE) > 0
+    ORDER  BY fts_score DESC
+    LIMIT  :candidates
+""").bindparams(bindparam("kb_ids", expanding=True))
+```
+
+Only rows with `fts_score > 0` are returned — MySQL omits documents with no query-term overlap, matching BM25 semantics without an in-memory `score == 0` guard.
 
 ---
 
 ### RRF merge — `_rrf_merge()`
 
 ```python
-def _rrf_merge(dense, sparse, top_k):
+def _rrf_merge(dense, qdrant_sparse, exact, top_k):
     merged = {**dense}
-    for h, c in sparse.items():
+    for h, c in qdrant_sparse.items():
         if h in merged:
-            merged[h].sparse_rank = c.sparse_rank   # already in dense — add sparse rank
+            merged[h].qdrant_sparse_rank = c.qdrant_sparse_rank
         else:
-            merged[h] = c                            # sparse-only — dense_rank stays -1
-
+            merged[h] = c
+    for h, c in exact.items():
+        if h in merged:
+            merged[h].exact_rank = c.exact_rank
+        else:
+            merged[h] = c
     ranked = sorted(merged.values(), key=lambda c: c.rrf_score, reverse=True)
     return [c.doc for c in ranked[:top_k]]
 ```
@@ -139,31 +156,25 @@ def _rrf_merge(dense, sparse, top_k):
 #### RRF score formula
 
 ```
-score(doc) = HYBRID_DENSE_WEIGHT  / (60 + dense_rank)
-           + HYBRID_SPARSE_WEIGHT / (60 + sparse_rank)
+score(doc) = HYBRID_DENSE_WEIGHT         / (60 + dense_rank)
+           + HYBRID_QDRANT_SPARSE_WEIGHT / (60 + qdrant_sparse_rank)
+           + HYBRID_EXACT_WEIGHT         / (60 + exact_rank)
 ```
 
-An absent leg (`rank == -1`) contributes 0. The constant 60 is the standard smoothing value from the original RRF paper (Cormack et al., 2009) — it prevents the top-ranked document from dominating disproportionately.
+A leg absent for a document (rank == -1) contributes 0. The constant 60 is from the original RRF paper (Cormack et al., 2009) — it prevents the top-ranked document from dominating disproportionately.
 
-#### The four cases
+#### The eight cases (three binary legs)
 
-| BM25 score | Dense distance | Outcome | Rationale |
-|------------|---------------|---------|-----------|
-| > 0 | ≤ threshold | Both legs contribute | Strong match — full RRF score |
-| = 0 | ≤ threshold | Dense leg only | Paraphrase / synonym match; dense signal is real and sufficient |
-| > 0 | > threshold | Sparse leg only | Exact keyword match with no semantic overlap (e.g. codes, model numbers) |
-| = 0 | > threshold | **Excluded** | No signal from either leg — not a relevant document |
-
----
-
-### Deduplication — `_content_hash()`
-
-Multiple knowledge bases may contain the same chunk (e.g. shared onboarding document). SHA-256 of the chunk text is used as the merge key so duplicates are collapsed to a single candidate before scoring.
-
-```python
-def _content_hash(text: str) -> str:
-    return hashlib.sha256(text.encode()).hexdigest()
-```
+| Dense | Sparse | Exact | Outcome |
+|-------|--------|-------|---------|
+| hit   | hit    | hit   | All three legs contribute — strongest signal |
+| hit   | hit    | miss  | Dense + sparse; keyword may not match exactly |
+| hit   | miss   | hit   | Dense + exact; SPLADE missed the query terms |
+| miss  | hit    | hit   | Sparse + exact; dense embedding didn't fire |
+| hit   | miss   | miss  | Dense only; paraphrase / synonym match |
+| miss  | hit    | miss  | Sparse only; unusual term weighting |
+| miss  | miss   | hit   | Exact only; keyword match, no semantic overlap |
+| miss  | miss   | miss  | Excluded — no signal from any leg |
 
 ---
 
@@ -174,20 +185,27 @@ def _content_hash(text: str) -> str:
 class _Candidate:
     doc: LangchainDocument
     content_hash: str
-    dense_rank: int = -1   # -1 = absent from this leg
-    sparse_rank: int = -1
+    dense_rank: int = -1           # -1 = absent from this leg
+    qdrant_sparse_rank: int = -1
+    exact_rank: int = -1
 
     @property
     def rrf_score(self) -> float:
         score = 0.0
         if self.dense_rank >= 0:
             score += settings.HYBRID_DENSE_WEIGHT / (_RRF_K + self.dense_rank)
-        if self.sparse_rank >= 0:
-            score += settings.HYBRID_SPARSE_WEIGHT / (_RRF_K + self.sparse_rank)
+        if self.qdrant_sparse_rank >= 0:
+            score += settings.HYBRID_QDRANT_SPARSE_WEIGHT / (_RRF_K + self.qdrant_sparse_rank)
+        if self.exact_rank >= 0:
+            score += settings.HYBRID_EXACT_WEIGHT / (_RRF_K + self.exact_rank)
         return score
 ```
 
-`-1` sentinel is intentional — it cleanly separates "not ranked" from "ranked last". A rank of 0 is the best possible position.
+`-1` sentinel separates "not ranked" from "ranked last". A rank of 0 is the best possible position.
+
+### Deduplication — `_content_hash()`
+
+Multiple knowledge bases may contain the same chunk (e.g. a shared onboarding document). SHA-256 of the chunk text is the merge key — duplicates are collapsed to one candidate before scoring.
 
 ---
 
@@ -197,35 +215,42 @@ All parameters live in `backend/app/core/config.py` and are set via `.env`.
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `RETRIEVAL_TOP_K` | `6` | Number of documents returned to the LLM |
-| `HYBRID_DENSE_WEIGHT` | `0.7` | Weight of the dense (embedding) leg in RRF |
-| `HYBRID_SPARSE_WEIGHT` | `0.3` | Weight of the BM25 leg in RRF |
-| `HYBRID_MAX_DENSE_DISTANCE` | `2.0` | Cosine distance cutoff for the dense leg (0–2); lower = more selective |
+| `RETRIEVAL_TOP_K` | `6` | Number of chunks returned to the LLM |
+| `HYBRID_DENSE_WEIGHT` | `0.5` | RRF weight for the dense (embedding) leg |
+| `HYBRID_QDRANT_SPARSE_WEIGHT` | `0.3` | RRF weight for the SPLADE sparse leg |
+| `HYBRID_EXACT_WEIGHT` | `0.2` | RRF weight for the MySQL FTS leg |
+| `RETRIEVAL_DENSE_ENABLED` | `true` | Enable/disable the dense leg |
+| `RETRIEVAL_QDRANT_SPARSE_ENABLED` | `true` | Enable/disable the sparse leg |
+| `RETRIEVAL_EXACT_ENABLED` | `true` | Enable/disable the exact leg |
+| `DENSE_EMBEDDING_DIM` | `1024` | Output dimension of the embedding model |
+| `SPLADE_MODEL` | `prithivida/Splade_PP_en_v1` | FastEmbed model name for SPLADE |
 
-Weights do not need to sum to 1 — RRF is scale-agnostic. Raising `HYBRID_SPARSE_WEIGHT` benefits corpora with precise terminology (legal, medical, technical). Raising `HYBRID_DENSE_WEIGHT` benefits conversational or paraphrase-heavy queries.
+Weights are relative — they don't need to sum to 1. Raise `HYBRID_EXACT_WEIGHT` for corpora with precise terminology (legal, medical, part numbers). Raise `HYBRID_DENSE_WEIGHT` for conversational or paraphrase-heavy content.
+
+Disabling a leg affects retrieval only. Ingestion always indexes all three stores, so re-enabling a leg later requires no re-indexing.
 
 ---
 
 ## Where retrieval is called
 
-`backend/app/services/chat_service.py`, Step 2 of `generate_response()`:
+`backend/app/services/chat_service.py`, inside `generate_response()`:
 
 ```python
-# Step 2: Retrieve relevant documents via hybrid search (dense + BM25 + RRF)
+# Retrieve relevant chunks via 3-leg hybrid search
 docs = await hybrid_search(
     query=standalone_question,
     kb_ids=knowledge_base_ids,
     db=db,
-    vector_stores=vector_stores,
 )
 ```
 
-The query passed in is the **condensed standalone question** — chat history context has already been folded in by Step 1 (the condense chain). This ensures the retrieval query is self-contained and does not rely on pronouns or references that BM25 would fail to resolve.
+The query passed is the **condensed standalone question** — chat history context has been folded in by the preceding summarisation/sliding-window step. This ensures the retrieval query is self-contained and does not depend on pronouns or conversational references that keyword search would fail to resolve.
 
 ---
 
 ## Performance notes
 
-- BM25 index is built in memory on every request from `DocumentChunk` rows. This is acceptable up to ~50 k short chunks (typically < 200 ms). For larger corpora a pre-built persistent index (e.g. Elasticsearch, Typesense) would be more appropriate.
-- ChromaDB queries run concurrently per collection via `similarity_search_with_score`; results are merged in Python.
-- The candidate pool (`top_k * 4`) adds overhead but is necessary for RRF correctness — without headroom, a document that is the best BM25 match but not in the top-K dense results would be invisible to the merge.
+- Dense and sparse legs query Qdrant (a compiled Rust service) — both are fast even for large collections.
+- The exact leg runs a native MySQL FULLTEXT query; InnoDB FTS indexes are persistent and maintained incrementally on insert.
+- The candidate pool (`top_k * 4`) adds some overhead but is necessary for RRF correctness — without headroom, a document ranked #1 by one leg but outside the top-K of another would be invisible to the merge.
+- SPLADE model (~500 MB) is loaded once per process and kept in memory as a module-level singleton.
