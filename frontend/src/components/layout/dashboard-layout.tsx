@@ -135,10 +135,5 @@ export const dashboardConfig = {
       href: "/dashboard/chat",
       icon: "messageSquare",
     },
-    {
-      title: "API Keys",
-      href: "/dashboard/api-keys",
-      icon: "key",
-    },
   ],
 };
