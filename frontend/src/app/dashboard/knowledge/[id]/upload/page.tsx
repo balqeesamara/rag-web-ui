@@ -81,11 +81,28 @@ export default function UploadPage({ params }: { params: { id: string } }) {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      "text/plain": [".txt"],
       "application/pdf": [".pdf"],
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-        [".docx"],
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": [".docx"],
+      "application/msword": [".doc"],
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation": [".pptx"],
+      "application/vnd.ms-powerpoint": [".ppt"],
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [".xlsx"],
+      "application/vnd.ms-excel": [".xls"],
+      "text/plain": [".txt"],
       "text/markdown": [".md"],
+      "text/html": [".html", ".htm"],
+      "message/rfc822": [".mhtml", ".eml"],
+      "text/csv": [".csv"],
+      "application/json": [".json"],
+      "application/xml": [".xml"],
+      "application/vnd.ms-outlook": [".msg"],
+      "application/epub+zip": [".epub"],
+      "image/jpeg": [".jpg", ".jpeg"],
+      "image/png": [".png"],
+      "image/gif": [".gif"],
+      "image/bmp": [".bmp"],
+      "image/tiff": [".tiff"],
+      "application/zip": [".zip"],
     },
   });
 
@@ -273,7 +290,7 @@ export default function UploadPage({ params }: { params: { id: string } }) {
             Drag and drop files here, or click to select files
           </p>
           <p className="mt-2 text-xs text-muted-foreground">
-            Supported formats: PDF, DOCX, TXT, MD
+            Supported formats: PDF, Word, PowerPoint, Excel, HTML, CSV, JSON, XML, Markdown, TXT, EPUB, Images (OCR), ZIP, EML, MSG
           </p>
         </div>
 

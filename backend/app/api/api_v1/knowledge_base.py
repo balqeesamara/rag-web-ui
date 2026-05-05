@@ -22,7 +22,7 @@ from app.schemas.knowledge import (
     DocumentResponse,
     PreviewRequest
 )
-from app.services.document_processor import process_document_background, upload_document, preview_document, PreviewResult
+from app.services.document_processor import process_document_background, upload_document, preview_document, PreviewResult, SUPPORTED_EXTENSIONS
 from app.core.config import settings
 from app.core.storage import save_file, delete_kb_files, delete_file
 
@@ -218,6 +218,14 @@ async def upload_kb_documents(
     
     results = []
     for file in files:
+        # Reject unsupported extensions early with a clear error
+        _, ext = os.path.splitext(file.filename or "")
+        if ext.lower() not in SUPPORTED_EXTENSIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported file type '{ext}'. Supported: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
+            )
+
         # 1. 计算文件 hash
         file_content = await file.read()
         file_hash = hashlib.sha256(file_content).hexdigest()

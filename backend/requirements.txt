@@ -16,3 +16,5 @@ pypdf>=3.0.0
 openai>=1.30.0
 email-validator
 docx2txt==0.8
+markitdown[all]>=0.1.0
+markitdown-ocr>=0.1.0

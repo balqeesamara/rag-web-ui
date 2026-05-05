@@ -6,7 +6,7 @@ import traceback
 from app.db.session import SessionLocal
 from typing import Optional, List, Dict, Set, Tuple
 from fastapi import UploadFile
-from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, TextLoader
+from markitdown import MarkItDown
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document as LangchainDocument
 from pydantic import BaseModel
@@ -31,8 +31,55 @@ from app.services.chunk_record import ChunkRecord
 # ── Module-level singletons (lazy) ────────────────────────────────────────────
 _qdrant_client: Optional[QdrantClient] = None
 _sparse_embedder: Optional[SparseTextEmbedding] = None
+_markitdown: Optional[MarkItDown] = None
 _EMBED_BATCH_SIZE = 32
 _QDRANT_UPSERT_BATCH = 100
+
+# Supported file extensions (markitdown handles all of these)
+SUPPORTED_EXTENSIONS = {
+    # Documents
+    ".pdf", ".docx", ".doc", ".pptx", ".ppt", ".xlsx", ".xls",
+    # Text / Markup
+    ".txt", ".md", ".html", ".htm", ".mhtml",
+    # Data formats
+    ".csv", ".json", ".xml",
+    # Email
+    ".msg", ".eml",
+    # Books
+    ".epub",
+    # Images (OCR via markitdown-ocr)
+    ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff",
+    # Archives (recursively processes contents)
+    ".zip",
+}
+
+CONTENT_TYPE_MAP = {
+    ".pdf":   "application/pdf",
+    ".docx":  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".doc":   "application/msword",
+    ".pptx":  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    ".ppt":   "application/vnd.ms-powerpoint",
+    ".xlsx":  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ".xls":   "application/vnd.ms-excel",
+    ".txt":   "text/plain",
+    ".md":    "text/markdown",
+    ".html":  "text/html",
+    ".htm":   "text/html",
+    ".mhtml": "message/rfc822",
+    ".csv":   "text/csv",
+    ".json":  "application/json",
+    ".xml":   "application/xml",
+    ".msg":   "application/vnd.ms-outlook",
+    ".eml":   "message/rfc822",
+    ".epub":  "application/epub+zip",
+    ".jpg":   "image/jpeg",
+    ".jpeg":  "image/jpeg",
+    ".png":   "image/png",
+    ".gif":   "image/gif",
+    ".bmp":   "image/bmp",
+    ".tiff":  "image/tiff",
+    ".zip":   "application/zip",
+}
 
 
 def _get_qdrant_client() -> QdrantClient:
@@ -50,6 +97,42 @@ def _get_sparse_embedder() -> SparseTextEmbedding:
             cache_dir=settings.FASTEMBED_CACHE_DIR,
         )
     return _sparse_embedder
+
+
+def _get_markitdown() -> MarkItDown:
+    """Lazy singleton for MarkItDown converter."""
+    global _markitdown
+    if _markitdown is None:
+        _markitdown = MarkItDown()
+    return _markitdown
+
+
+def _convert_to_markdown(abs_path: str, file_name: str) -> str:
+    """
+    Convert any supported file to clean Markdown text using markitdown.
+
+    Falls back gracefully: if conversion fails for any reason, returns
+    the raw file content decoded as UTF-8 (best-effort).
+    """
+    logger = logging.getLogger(__name__)
+    try:
+        result = _get_markitdown().convert(abs_path)
+        markdown_text = result.text_content or ""
+        logger.info(
+            "[markitdown] converted %s → %d chars of markdown",
+            file_name, len(markdown_text)
+        )
+        return markdown_text
+    except Exception as e:
+        logger.warning(
+            "[markitdown] conversion failed for %s (%s) — falling back to raw text",
+            file_name, e
+        )
+        try:
+            with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
+                return f.read()
+        except Exception:
+            return ""
 
 
 def _chunk_id_to_point_id(chunk_id: str) -> str:
@@ -266,15 +349,9 @@ async def upload_document(file: UploadFile, kb_id: int, user_id: int) -> UploadR
     file_name = "".join(c for c in file.filename if c.isalnum() or c in ('-', '_', '.')).strip()
     object_path = f"user_{user_id}/kb_{kb_id}/{file_name}"
 
-    content_types = {
-        ".pdf": "application/pdf",
-        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        ".md": "text/markdown",
-        ".txt": "text/plain"
-    }
-
     _, ext = os.path.splitext(file_name)
-    content_type = content_types.get(ext.lower(), "application/octet-stream")
+    ext = ext.lower()
+    content_type = CONTENT_TYPE_MAP.get(ext, "application/octet-stream")
 
     try:
         save_file(object_path, content)
@@ -302,25 +379,19 @@ async def preview_document(file_path: str, chunk_size: int = None, chunk_overlap
     abs_path = get_abs_path(file_path)
 
     try:
-        # Select appropriate loader
-        if ext == ".pdf":
-            loader = PyPDFLoader(abs_path)
-        elif ext == ".docx":
-            loader = Docx2txtLoader(abs_path)
-        elif ext == ".md":
-            loader = TextLoader(abs_path)
-        else:  # Default to text loader
-            loader = TextLoader(abs_path)
+        # Convert to markdown using markitdown (handles all supported formats)
+        markdown_text = _convert_to_markdown(abs_path, os.path.basename(file_path))
 
-        # Load and split the document
-        documents = loader.load()
+        # Wrap in a LangchainDocument so we can reuse RecursiveCharacterTextSplitter
+        doc = LangchainDocument(
+            page_content=markdown_text,
+            metadata={"source": os.path.basename(file_path)},
+        )
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap
         )
-        chunks = text_splitter.split_documents(documents)
-
-        # Convert to preview format
+        chunks = text_splitter.split_documents([doc])
         preview_chunks = [
             TextChunk(
                 content=chunk.page_content,
@@ -386,26 +457,19 @@ async def process_document_background(
             _, ext = os.path.splitext(file_name)
             ext = ext.lower()
 
-            logger.info(f"Task {task_id}: Loading document with extension {ext}")
-            if ext == ".pdf":
-                loader = PyPDFLoader(local_temp_path)
-            elif ext == ".docx":
-                loader = Docx2txtLoader(local_temp_path)
-            elif ext == ".md":
-                loader = TextLoader(local_temp_path)
-            else:
-                loader = TextLoader(local_temp_path)
-
-            logger.info(f"Task {task_id}: Loading document content")
-            documents = loader.load()
-            logger.info(f"Task {task_id}: Document loaded successfully")
+            logger.info(f"Task {task_id}: Converting document with markitdown")
+            markdown_text = _convert_to_markdown(local_temp_path, file_name)
 
             logger.info(f"Task {task_id}: Splitting document into chunks")
+            doc = LangchainDocument(
+                page_content=markdown_text,
+                metadata={"source": file_name},
+            )
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=chunk_size,
                 chunk_overlap=chunk_overlap
             )
-            chunks = text_splitter.split_documents(documents)
+            chunks = text_splitter.split_documents([doc])
             logger.info(f"Task {task_id}: Document split into {len(chunks)} chunks")
 
             # 3. Initialise Qdrant collection (creates if not exists)
