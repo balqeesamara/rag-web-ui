@@ -83,8 +83,7 @@ app/
 │       ├── api.py             # Router registration
 │       ├── auth.py            # JWT login / register
 │       ├── chat.py            # Chat endpoints (create, stream, history)
-│       ├── knowledge_base.py  # KB + document CRUD, upload, processing
-│       └── api_keys.py        # API key management
+│       └── knowledge_base.py  # KB + document CRUD, upload, processing
 ├── core/
 │   ├── config.py              # All settings (pydantic-settings, reads .env)
 │   ├── security.py            # Password hashing, JWT creation/verification

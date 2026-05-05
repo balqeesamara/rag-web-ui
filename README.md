@@ -93,6 +93,15 @@ OPENAI_EMBEDDINGS_MODEL=your-embedding-model
 DENSE_EMBEDDING_DIM=1024
 ```
 
+### Chunking
+
+| Variable | Description | Default |
+|---|---|---|
+| `CHUNK_SIZE` | Target chunk size in **characters** (not tokens). Keep <= 1800 for SPLADE compatibility. | `1500` |
+| `OVERLAP_PERCENTAGE` | Fraction of `CHUNK_SIZE` repeated at chunk boundaries (0.0-1.0). | `0.20` |
+
+> **Warning:** Do not change these after ingesting documents. Re-upload existing documents to re-index with new settings. See [docs/chunking.md](docs/chunking.md).
+
 ### Retrieval
 
 | Variable | Description | Default |

@@ -2,10 +2,10 @@
 
 ## Overview
 
-When a document is uploaded it goes through a 7-step pipeline that ends with
-each text chunk stored in two places: Qdrant (for vector search) and MySQL (for
-full-text search). Every chunk produces exactly **2 vectors** — one dense, one
-sparse — stored as named vector fields on a single Qdrant point.
+When a document is uploaded it goes through an **8-step pipeline** that ends
+with each text chunk stored in two places: Qdrant (for vector search) and MySQL
+(for full-text search). Every chunk produces exactly **2 vectors** — one dense,
+one sparse — stored as named vector fields on a single Qdrant point.
 
 Document parsing is handled by **[MarkItDown](https://github.com/microsoft/markitdown)**
 (Microsoft), which converts every supported file type into clean, consistent
@@ -113,36 +113,59 @@ preserving sentence context across boundaries.
 > have been ingested, delete and re-upload existing documents to re-index with
 > the new settings.
 
-### 4. Deduplicate
+### 3. Ensure Qdrant Collection
 
-SHA-256 of `(chunk_text + metadata_string)` is computed for every chunk. If the
-hash already exists in MySQL for that file, the chunk is skipped. Only new or
-changed chunks proceed to embedding. This makes re-processing an updated
-document cheap — unchanged sections are not re-embedded or re-indexed.
+`_ensure_qdrant_collection()` checks whether a collection named `kb_{kb_id}`
+already exists in Qdrant. If not, it creates it with two named vector configs:
 
-### 5. Dense Embedding
+```
+"dense":  VectorParams(size=DENSE_EMBEDDING_DIM, distance=COSINE)
+"sparse": SparseVectorParams(index=SparseIndexParams(on_disk=False))
+```
 
-Chunk texts are sent to the configured OpenAI-compatible embedding API
-(`OPENAI_EMBEDDINGS_MODEL`) in batches of 32.
+This step is idempotent — re-processing an existing document skips creation.
 
-Each chunk produces one `List[float]` of length `DENSE_EMBEDDING_DIM` (default
-1024 for local models such as `qwen3-embedding-0.6b`; 1536 for
-`text-embedding-3-small` / `text-embedding-ada-002`).
+### 4. Move to Permanent Storage
 
-This is a semantic embedding — the entire chunk is compressed into a single
-point in a continuous vector space where similar meanings cluster together
-regardless of exact wording.
+The file is moved from its temp path
+(`uploads/user_{uid}/kb_{kb_id}/temp/{filename}`) to its permanent location
+(`uploads/user_{uid}/kb_{kb_id}/{filename}`). A `permanent_path` variable tracks
+whether this move has occurred so the cleanup logic in the failure path always
+deletes the file from its current location.
 
-### 6. Sparse Embedding (SPLADE)
+### 5. Create Document Record
 
-The same chunk texts are passed through FastEmbed's `SparseTextEmbedding`
-(`prithivida/Splade_PP_en_v1` by default). Each chunk produces a
-`SparseVector`: two arrays — `indices` and `values` — where the vast majority
-of entries are zero and only a small subset carry non-zero weights.
+A `Document` ORM record is committed to MySQL with ownership metadata
+(`file_name`, `file_path`, `file_hash`, `file_size`, `content_type`,
+`knowledge_base_id`). This is the anchor that chunk records will reference.
+
+### 6. Build Chunk Records (deferred commit)
+
+For each chunk a `DocumentChunk` record is added to the SQLAlchemy session and
+a Qdrant payload tuple is prepared. The chunk ID is a SHA-256 of
+`"{kb_id}:{file_name}:{chunk_text}"` — scoping the ID to the knowledge base so
+the same text in two knowledge bases produces different IDs.
+
+**No DB commit happens here.** Chunks remain in the session so that a Qdrant
+failure in step 7 can be recovered by rolling back the session, keeping MySQL
+and Qdrant in sync.
+
+### 7. Embed and Upsert to Qdrant
+
+Dense and sparse embeddings are computed together in `_upsert_to_qdrant()`, then
+flushed to Qdrant. Both embedding calls happen before any DB commit so a network
+failure rolls back cleanly.
+
+**Dense embeddings** — chunk texts are sent to the configured OpenAI-compatible
+API (`OPENAI_EMBEDDINGS_MODEL`) in batches of 32. Each chunk produces one
+`List[float]` of length `DENSE_EMBEDDING_DIM` (1024 for local models such as
+`qwen3-embedding-0.6b`; 1536 for `text-embedding-3-small`).
+
+**Sparse embeddings** — the same texts are passed through FastEmbed's
+`SparseTextEmbedding` (`prithivida/Splade_PP_en_v1` by default). Each chunk
+produces a `SparseVector(indices, values)` in BERT vocabulary space.
 
 See [What sparse vectors represent](#what-sparse-vectors-represent) below.
-
-### 7. Upsert to Qdrant
 
 Each chunk becomes one Qdrant `PointStruct`:
 
@@ -166,11 +189,16 @@ PointStruct(
 
 Points are upserted in batches of 100 (`_QDRANT_UPSERT_BATCH`).
 
-### 8. Store in MySQL
+### 8. Commit Chunks + Mark Task Complete
 
-The chunk text and metadata are also inserted into the `document_chunks` table
-so that MySQL's InnoDB FULLTEXT index can serve the exact-search leg at query
-time. This is the same table the exact retrieval leg queries with
+A single `db.commit()` atomically persists all pending chunk records, updates
+`task.status = "completed"`, and sets `upload.status = "completed"`. Because
+this is the first commit that writes chunks, a Qdrant failure in step 7 rolls
+back all chunk state cleanly — the two stores stay in sync.
+
+The chunk text and metadata written here back the `document_chunks` table so
+that MySQL's InnoDB FULLTEXT index can serve the exact-search leg at query time.
+This is the same table the exact retrieval leg queries with
 `MATCH(...) AGAINST(... IN NATURAL LANGUAGE MODE)`.
 
 ---
