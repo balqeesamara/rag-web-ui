@@ -19,6 +19,7 @@ export default function NewChatPage() {
   const [knowledgeBases, setKnowledgeBases] = useState<KnowledgeBase[]>([]);
   const [selectedKB, setSelectedKB] = useState<number | null>(null);
   const [title, setTitle] = useState("");
+  const [useGraphRag, setUseGraphRag] = useState(false);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,6 +60,7 @@ export default function NewChatPage() {
       const data = await api.post("/api/chat", {
         title,
         knowledge_base_ids: [selectedKB],
+        use_graph_rag: useGraphRag,
       });
 
       router.push(`/dashboard/chat/${data.id}`);
@@ -181,6 +183,22 @@ export default function NewChatPage() {
           </div>
 
           {error && <div className="text-sm text-red-500">{error}</div>}
+
+          <div className="flex items-center gap-3 py-2">
+            <input
+              id="use-graph-rag"
+              type="checkbox"
+              checked={useGraphRag}
+              onChange={(e) => setUseGraphRag(e.target.checked)}
+              className="h-4 w-4 rounded border border-input cursor-pointer accent-primary"
+            />
+            <label htmlFor="use-graph-rag" className="text-sm cursor-pointer select-none">
+              <span className="font-medium">Enable GraphRAG</span>
+              <span className="text-muted-foreground ml-1">
+                — multi-hop knowledge graph retrieval (slower, richer context)
+              </span>
+            </label>
+          </div>
 
           <div className="flex justify-end space-x-4">
             <button

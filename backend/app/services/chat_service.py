@@ -227,8 +227,7 @@ async def _rewrite_query(
             "Given a chat history and the latest user question "
             "which might reference context in the chat history, "
             "formulate a standalone question which can be understood "
-            "without the chat history. Do NOT answer the question, just "
-            "reformulate it if needed and otherwise return it as is. "
+            "without the chat history. Do NOT answer the question. "
             "Your only task is to rewrite the user's question as a fully self-contained question "
             "that can be understood without the chat history. "
             "Output ONLY the rewritten question — no explanations, no answers, no extra text. "
@@ -335,6 +334,7 @@ async def generate_response(
             query=standalone_question,
             kb_ids=knowledge_base_ids,
             db=db,
+            use_graph_rag=chat.use_graph_rag if chat else False,
         )
         logger.info("[STEP 2] returned %d docs", len(docs))
         for i, doc in enumerate(docs):
@@ -382,47 +382,39 @@ async def generate_response(
             "- Use *italics* for definitions, technical terms, or emphasis.\n"
             "- Use numbered lists (1. 2. 3.) for sequential steps or ordered items.\n"
             "- Use bullet points (- or *) for non-ordered lists, features, or comparisons.\n"
-            "- Use headings (##, ###) only for longer multi-section answers.\n"
+            "- Use headings (##, ###) for longer multi-section answers.\n"
             "- Keep paragraphs short and well-separated for readability.\n\n"
             "## Citations\n"
             "You will be given context documents numbered sequentially starting from 1.\n"
             "You MUST cite sources using EXACTLY this format: [citation:x] — for example: 'The sky is blue [citation:1].'\n"
             "Do NOT use any other citation format such as [1], (1), Context [1], or footnotes.\n"
-            "If a sentence draws from multiple contexts, list all applicable citations: [citation:1][citation:2].\n\n"
+            "If a sentence draws from multiple contexts, list all applicable citations: [citation:1] [citation:2].\n\n"
             "## General\n"
             "- Your answer must be correct, accurate, and written in a professional, unbiased tone.\n"
-            "- Limit your response to 2048 tokens.\n"
+            # "- Limit your response to 2048 tokens.\n"
             "- Do not include information unrelated to the question, and do not repeat yourself.\n"
             "- If the provided context does not contain sufficient information, say so briefly and professionally.\n"
             "- Write in the same language as the question (except for code, citations, and proper nouns).\n"
-            "- Do not blindly repeat the contexts verbatim; synthesise and explain.\n\n"
+            "- Do not blindly repeat the contexts verbatim; synthesize and explain.\n\n"
             f"Context:\n{formatted_context}"
             f"{summary_section}"
         )
-
-        qa_prompt = ChatPromptTemplate.from_messages([
-            ("system", qa_system_prompt),
-            MessagesPlaceholder("chat_history"),
-            ("human", "{input}"),
-        ])
-        qa_messages = qa_prompt.format_prompt(
-            input=standalone_question,
-            context=formatted_context,
-            chat_history=recent_lc_history,
-        ).to_messages()
 
         logger.info("[STEP 4] QA | model=%s | standalone=%r | context_chunks=%d | window_msgs=%d | has_summary=%s",
                     settings.OPENAI_MODEL, standalone_question, len(docs),
                     len(recent_lc_history), bool(existing_summary))
 
-        openai_messages = []
-        for message in qa_messages:
-            role = "user"
-            if isinstance(message, AIMessage):
-                role = "assistant"
-            elif message.type == "system":
-                role = "system"
-            openai_messages.append({"role": role, "content": message.content})
+        # Build OpenAI messages directly — do NOT use ChatPromptTemplate here.
+        # Template formatting parses curly-braces in user content (e.g. LaTeX
+        # citations like {author1, author2}) as variable placeholders, raising
+        # KeyError when the context contains arbitrary document text.
+        openai_messages = [{"role": "system", "content": qa_system_prompt}]
+        for lc_msg in recent_lc_history:
+            if isinstance(lc_msg, HumanMessage):
+                openai_messages.append({"role": "user", "content": lc_msg.content})
+            elif isinstance(lc_msg, AIMessage):
+                openai_messages.append({"role": "assistant", "content": lc_msg.content})
+        openai_messages.append({"role": "user", "content": standalone_question})
 
         openai_client = AsyncOpenAI(
             api_key=settings.OPENAI_API_KEY,

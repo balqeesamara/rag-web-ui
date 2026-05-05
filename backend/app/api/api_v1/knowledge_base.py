@@ -181,7 +181,16 @@ async def delete_knowledge_base(
         except Exception as e:
             cleanup_errors.append(f"Failed to clean up Qdrant collection: {str(e)}")
             logger.error(f"Qdrant cleanup error for kb {kb_id}: {str(e)}")
-        
+
+        # 3. Clean up Neo4j graph nodes for this KB
+        try:
+            from app.services.graph_service import delete_graph_for_kb
+            delete_graph_for_kb(kb_id=kb_id)
+            logger.info(f"Cleaned up Neo4j graph nodes for knowledge base {kb_id}")
+        except Exception as e:
+            cleanup_errors.append(f"Failed to clean up Neo4j graph: {str(e)}")
+            logger.error(f"Neo4j cleanup error for kb {kb_id}: {str(e)}")
+
         # Finally, delete database records in a single transaction
         db.delete(kb)
         db.commit()
@@ -581,6 +590,15 @@ async def delete_document(
         except Exception as e:
             cleanup_warnings.append(f"File storage cleanup warning: {str(e)}")
             logger.error(f"Failed to delete file {document.file_path}: {e}")
+
+        # 5b. Delete Neo4j graph nodes for this document
+        try:
+            from app.services.graph_service import delete_graph_for_document
+            delete_graph_for_document(kb_id=kb_id, document_id=doc_id)
+            logger.info(f"Deleted Neo4j graph nodes for document {doc_id}")
+        except Exception as e:
+            cleanup_warnings.append(f"Neo4j graph cleanup warning: {str(e)}")
+            logger.error(f"Failed to delete Neo4j nodes for document {doc_id}: {e}")
 
         # 6. Delete the document record itself
         db.delete(document)

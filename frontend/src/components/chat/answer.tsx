@@ -8,7 +8,7 @@ import React, {
   ClassAttributes,
 } from "react";
 import { AnchorHTMLAttributes } from "react";
-import { ChevronDown, ChevronRight, Brain, Search, BookOpen } from "lucide-react";
+import { ChevronDown, ChevronRight, Brain, Search, BookOpen, Share2 } from "lucide-react";
 import {
   Popover,
   PopoverContent,
@@ -20,6 +20,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeHighlight from "rehype-highlight";
 import { api } from "@/lib/api";
+import { cleanChunkText } from "@/lib/utils";
 import { FileIcon } from "react-file-icon";
 
 // Debounce hook to prevent rapid state updates during streaming
@@ -203,6 +204,46 @@ interface DocumentInfo {
   knowledge_base: KnowledgeBaseInfo;
 }
 
+const RetrievedGraphBlock: FC<{ docs: ContextDoc[] }> = ({ docs }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="my-2 rounded-md border border-purple-100 dark:border-purple-900/40 bg-purple-50/50 dark:bg-purple-900/10 w-full">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="flex items-center gap-1.5 w-full px-3 py-1.5 text-left rounded-t-md hover:bg-purple-100/60 dark:hover:bg-purple-900/20 transition-colors"
+      >
+        {isExpanded ? (
+          <ChevronDown className="h-3 w-3 text-purple-400 shrink-0" />
+        ) : (
+          <ChevronRight className="h-3 w-3 text-purple-400 shrink-0" />
+        )}
+        <Share2 className="h-3 w-3 shrink-0 text-purple-400" />
+        <span className="text-xs text-purple-500 dark:text-purple-400 font-medium select-none">
+          Retrieved Graph Knowledge
+        </span>
+        <span className="ml-auto text-[10px] text-purple-400 dark:text-purple-500 font-normal select-none">
+          {docs.length} node{docs.length !== 1 ? "s" : ""}
+        </span>
+      </button>
+      {isExpanded && (
+        <div className="px-3 pb-2 pt-1 max-h-64 overflow-y-auto border-t border-purple-100 dark:border-purple-900/40 space-y-2">
+          {docs.map((doc, i) => (
+            <div key={i} className="text-[11px] leading-[1.45] text-purple-700 dark:text-purple-300 font-sans">
+              <span className="font-semibold text-purple-500 dark:text-purple-400">[G{i + 1}] </span>
+              <span className="whitespace-pre-wrap">
+                {cleanChunkText(doc.page_content).length > 400
+                  ? cleanChunkText(doc.page_content).slice(0, 400) + "…"
+                  : cleanChunkText(doc.page_content)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 interface CitationInfo {
   knowledge_base: KnowledgeBaseInfo;
   document: DocumentInfo;
@@ -355,7 +396,11 @@ export const Answer: FC<{
                 </div>
               )}
               <Divider />
-              <p className="text-gray-700 leading-relaxed">{citation.text}</p>
+              <div className="text-gray-700 leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeHighlight]}>
+                  {cleanChunkText(citation.text)}
+                </Markdown>
+              </div>
               <Divider />
               {Object.keys(citation.metadata).length > 0 && (
                 <div className="text-xs text-gray-500 bg-gray-50 p-2 rounded">
@@ -403,8 +448,11 @@ export const Answer: FC<{
   return (
     <div className="prose prose-sm max-w-full">
       {rewrittenQuery && <RewrittenQueryBlock query={rewrittenQuery} />}
-      {retrievedContext && retrievedContext.length > 0 && (
-        <RetrievedContextBlock docs={retrievedContext} />
+      {retrievedContext && retrievedContext.filter(d => d.metadata?.source !== "graph").length > 0 && (
+        <RetrievedContextBlock docs={retrievedContext.filter(d => d.metadata?.source !== "graph")} />
+      )}
+      {retrievedContext && retrievedContext.filter(d => d.metadata?.source === "graph").length > 0 && (
+        <RetrievedGraphBlock docs={retrievedContext.filter(d => d.metadata?.source === "graph")} />
       )}
       {parsedContent.thinkContent !== null && (
         <ThinkBlock

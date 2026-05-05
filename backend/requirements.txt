@@ -18,3 +18,5 @@ email-validator
 docx2txt==0.8
 markitdown[all]>=0.1.0
 markitdown-ocr>=0.1.0
+neo4j>=5.26
+neo4j-graphrag[qdrant]>=1.8.0

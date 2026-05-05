@@ -21,6 +21,7 @@ services:
     depends_on:
       - db
       - qdrant
+      - neo4j
     restart: on-failure
     deploy:
       restart_policy:
@@ -87,6 +88,27 @@ services:
       - ./docker-data/qdrant:/qdrant/storage
     networks:
       - app_network
+
+  neo4j:
+    image: neo4j:2026.04.0-community-trixie
+    ports:
+      - "7474:7474"   # HTTP browser UI
+      - "7687:7687"   # Bolt wire protocol
+    environment:
+      - NEO4J_AUTH=neo4j/ragwebui_neo4j
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_server_memory_heap_initial__size=512m
+      - NEO4J_server_memory_heap_max__size=1G
+    volumes:
+      - ./docker-data/neo4j/data:/data
+      - ./docker-data/neo4j/logs:/logs
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7474"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
   adminer:
     image: adminer:latest

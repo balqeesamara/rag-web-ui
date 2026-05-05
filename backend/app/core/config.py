@@ -116,6 +116,31 @@ class Settings(BaseSettings):
     RETRIEVAL_QDRANT_SPARSE_ENABLED: bool = os.getenv("RETRIEVAL_QDRANT_SPARSE_ENABLED", "true").lower() == "true"
     RETRIEVAL_EXACT_ENABLED: bool = os.getenv("RETRIEVAL_EXACT_ENABLED", "true").lower() == "true"
 
+    # ── Neo4j / GraphRAG ────────────────────────────────────────────────────────
+    NEO4J_URI: str = os.getenv("NEO4J_URI", "bolt://neo4j:7687")
+    NEO4J_USER: str = os.getenv("NEO4J_USER", "neo4j")
+    NEO4J_PASSWORD: str = os.getenv("NEO4J_PASSWORD", "ragwebui_neo4j")
+
+    # Set false to disable graph extraction during ingestion (saves LLM calls).
+    GRAPHRAG_ENABLED: bool = os.getenv("GRAPHRAG_ENABLED", "true").lower() == "true"
+
+    # LLM model for entity/relationship extraction. Falls back to OPENAI_MODEL.
+    GRAPHRAG_LLM_MODEL: str = os.getenv("GRAPHRAG_LLM_MODEL", "")
+
+    # Enable/disable the graph retrieval leg at query time (ingestion unaffected).
+    RETRIEVAL_GRAPH_ENABLED: bool = os.getenv("RETRIEVAL_GRAPH_ENABLED", "true").lower() == "true"
+
+    # Number of graph hops to traverse from seed nodes at query time.
+    GRAPHRAG_RETRIEVAL_HOPS: int = int(os.getenv("GRAPHRAG_RETRIEVAL_HOPS", "2"))
+
+    # RRF weight for the graph retrieval leg.
+    HYBRID_GRAPH_WEIGHT: float = float(os.getenv("HYBRID_GRAPH_WEIGHT", "0.3"))
+
+    @property
+    def graphrag_model(self) -> str:
+        """Model to use for entity/relationship extraction. Falls back to OPENAI_MODEL."""
+        return self.GRAPHRAG_LLM_MODEL or self.OPENAI_MODEL
+
     class Config:
         env_file = ".env"
 

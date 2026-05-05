@@ -16,6 +16,8 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_started
+      neo4j:
+        condition: service_healthy
     restart: on-failure
     deploy:
       restart_policy:
@@ -75,6 +77,36 @@ services:
       - ./docker-data/qdrant:/qdrant/storage
     networks:
       - app_network
+
+  neo4j:
+    image: neo4j:2026.04.0-community-trixie
+    restart: always
+    ports:
+      - "7474:7474"   # HTTP browser UI
+      - "7687:7687"   # Bolt driver port
+    environment:
+      - NEO4J_AUTH=neo4j/${NEO4J_PASSWORD:-ragwebui_neo4j}
+      - NEO4J_PLUGINS=["apoc"]
+    volumes:
+      - ./docker-data/neo4j/data:/data
+      - ./docker-data/neo4j/logs:/logs
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD", "neo4j", "status"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+
+  adminer:
+    image: adminer:latest
+    ports:
+      - "8080:8080"
+    networks:
+      - app_network
+    depends_on:
+      - db
 
 networks:
   app_network:

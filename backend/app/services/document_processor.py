@@ -611,6 +611,28 @@ async def process_document_background(
         db.commit()
         logger.info(f"Task {task_id}: Processing completed successfully")
 
+        # ── Step 9: Build Neo4j knowledge graph (non-fatal) ──────────────────
+        # Runs AFTER the atomic commit so a Neo4j failure never triggers a
+        # DB rollback. The document is fully searchable via the other 3 legs
+        # even if graph extraction fails.
+        if settings.GRAPHRAG_ENABLED:
+            try:
+                from app.services.graph_service import build_graph_for_document
+                chunk_texts = [p[1] for p in qdrant_payloads]
+                chunk_uuid_ids = [p[0] for p in qdrant_payloads]
+                await build_graph_for_document(
+                    kb_id=kb_id,
+                    document_id=document.id,
+                    file_name=file_name,
+                    chunks=chunk_texts,
+                    chunk_ids=chunk_uuid_ids,
+                )
+                logger.info(f"Task {task_id}: Knowledge graph built in Neo4j")
+            except Exception as e:
+                logger.warning(
+                    f"Task {task_id}: Neo4j graph build failed (non-fatal): {e}"
+                )
+
     except Exception as e:
         logger.error(f"Task {task_id}: Error processing document: {str(e)}")
         logger.error(f"Task {task_id}: Stack trace: {traceback.format_exc()}")

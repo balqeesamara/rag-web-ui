@@ -1,11 +1,12 @@
 """
-3-leg hybrid retrieval fused with Reciprocal Rank Fusion (RRF):
+4-leg hybrid retrieval fused with Reciprocal Rank Fusion (RRF):
 
   Leg 1 — Dense   : Qdrant cosine-similarity search on Qwen3 embeddings
   Leg 2 — Sparse  : Qdrant learned sparse-vector search (SPLADE via FastEmbed)
   Leg 3 — Exact   : MySQL InnoDB FULLTEXT search (BM25/TF-IDF, server-side)
+  Leg 4 — Graph   : Neo4j VectorCypherRetriever (opt-in per chat, requires use_graph_rag=True)
 
-All three legs are run independently; their rank lists are merged by weighted
+All three base legs are run independently; their rank lists are merged by weighted
 RRF.  Individual legs can be disabled via .env (retrieval only — ingestion
 always indexes all three, so re-enabling a leg needs no re-indexing).
 
@@ -13,10 +14,12 @@ Configuration (.env / settings):
   HYBRID_DENSE_WEIGHT          — RRF weight for the dense leg          (default 0.5)
   HYBRID_QDRANT_SPARSE_WEIGHT  — RRF weight for the Qdrant sparse leg  (default 0.3)
   HYBRID_EXACT_WEIGHT          — RRF weight for the MySQL exact leg     (default 0.2)
+  HYBRID_GRAPH_WEIGHT          — RRF weight for the graph leg           (default 0.3)
   RETRIEVAL_TOP_K              — number of documents returned           (default 6)
   RETRIEVAL_DENSE_ENABLED      — enable/disable dense leg               (default true)
   RETRIEVAL_QDRANT_SPARSE_ENABLED — enable/disable sparse leg           (default true)
   RETRIEVAL_EXACT_ENABLED      — enable/disable exact leg               (default true)
+  RETRIEVAL_GRAPH_ENABLED      — enable/disable graph leg               (default true)
 
 Absent-leg design
 -----------------
@@ -89,6 +92,7 @@ class _Candidate:
     dense_rank: int = -1           # -1 = absent from this leg
     qdrant_sparse_rank: int = -1
     exact_rank: int = -1
+    graph_rank: int = -1
 
     @property
     def rrf_score(self) -> float:
@@ -99,6 +103,8 @@ class _Candidate:
             score += settings.HYBRID_QDRANT_SPARSE_WEIGHT / (_RRF_K + self.qdrant_sparse_rank)
         if self.exact_rank >= 0:
             score += settings.HYBRID_EXACT_WEIGHT / (_RRF_K + self.exact_rank)
+        if self.graph_rank >= 0:
+            score += settings.HYBRID_GRAPH_WEIGHT / (_RRF_K + self.graph_rank)
         return score
 
 
@@ -261,6 +267,7 @@ def _rrf_merge(
     dense: Dict[str, _Candidate],
     qdrant_sparse: Dict[str, _Candidate],
     exact: Dict[str, _Candidate],
+    graph: Dict[str, _Candidate],
     top_k: int,
 ) -> List[LangchainDocument]:
     merged: Dict[str, _Candidate] = {**dense}
@@ -277,15 +284,22 @@ def _rrf_merge(
         else:
             merged[h] = c
 
+    for h, c in graph.items():
+        if h in merged:
+            merged[h].graph_rank = c.graph_rank
+        else:
+            merged[h] = c
+
     ranked = sorted(merged.values(), key=lambda c: c.rrf_score, reverse=True)
     logger.info("[RRF] total unique candidates=%d | returning top_k=%d", len(ranked), top_k)
     for i, c in enumerate(ranked[:top_k]):
         logger.info(
-            "  rrf[%d] score=%.5f dense_rank=%s sparse_rank=%s exact_rank=%s text=%r",
+            "  rrf[%d] score=%.5f dense_rank=%s sparse_rank=%s exact_rank=%s graph_rank=%s text=%r",
             i, c.rrf_score,
             c.dense_rank if c.dense_rank >= 0 else "-",
             c.qdrant_sparse_rank if c.qdrant_sparse_rank >= 0 else "-",
             c.exact_rank if c.exact_rank >= 0 else "-",
+            c.graph_rank if c.graph_rank >= 0 else "-",
             c.doc.page_content[:80],
         )
     return [c.doc for c in ranked[:top_k]]
@@ -297,6 +311,7 @@ async def hybrid_search(
     query: str,
     kb_ids: List[int],
     db: Session,
+    use_graph_rag: bool = False,
 ) -> List[LangchainDocument]:
     """Run enabled retrieval legs in parallel (sync calls) and merge via RRF."""
     top_k = settings.RETRIEVAL_TOP_K
@@ -306,20 +321,39 @@ async def hybrid_search(
         "dense": settings.RETRIEVAL_DENSE_ENABLED,
         "qdrant_sparse": settings.RETRIEVAL_QDRANT_SPARSE_ENABLED,
         "exact": settings.RETRIEVAL_EXACT_ENABLED,
+        "graph": use_graph_rag and settings.RETRIEVAL_GRAPH_ENABLED,
     }
     logger.info(
-        "hybrid_search | kb_ids=%s top_k=%d legs=%s weights=(%.2f, %.2f, %.2f)",
+        "hybrid_search | kb_ids=%s top_k=%d legs=%s weights=(%.2f, %.2f, %.2f, %.2f)",
         kb_ids, top_k,
         [k for k, v in enabled.items() if v],
         settings.HYBRID_DENSE_WEIGHT,
         settings.HYBRID_QDRANT_SPARSE_WEIGHT,
         settings.HYBRID_EXACT_WEIGHT,
+        settings.HYBRID_GRAPH_WEIGHT,
     )
 
     dense        = _dense_search(query, kb_ids, pool)           if enabled["dense"]          else {}
     qdrant_sparse = _qdrant_sparse_search(query, kb_ids, pool)  if enabled["qdrant_sparse"]  else {}
     exact        = _exact_search(query, kb_ids, db, pool)       if enabled["exact"]          else {}
 
-    docs = _rrf_merge(dense, qdrant_sparse, exact, top_k)
+    graph: Dict[str, _Candidate] = {}
+    if enabled["graph"]:
+        try:
+            from app.services.graph_service import graph_search as _graph_search
+            graph_docs = _graph_search(query_text=query, kb_ids=kb_ids, top_k=pool)
+            for rank, doc in enumerate(graph_docs):
+                h = _content_hash(doc.page_content)
+                if h not in graph:
+                    graph[h] = _Candidate(
+                        doc=doc,
+                        content_hash=h,
+                        graph_rank=rank,
+                    )
+            logger.info("[GRAPH] graph_search returned %d unique candidates", len(graph))
+        except Exception as e:
+            logger.warning("hybrid_search: graph leg failed (non-fatal): %s", e)
+
+    docs = _rrf_merge(dense, qdrant_sparse, exact, graph, top_k)
     logger.info("hybrid_search returned %d documents", len(docs))
     return docs

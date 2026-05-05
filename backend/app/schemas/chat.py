@@ -23,6 +23,7 @@ class ChatBase(BaseModel):
 
 class ChatCreate(ChatBase):
     knowledge_base_ids: List[int]
+    use_graph_rag: bool = False
 
 class ChatUpdate(ChatBase):
     knowledge_base_ids: Optional[List[int]] = None
@@ -30,6 +31,7 @@ class ChatUpdate(ChatBase):
 class ChatResponse(ChatBase):
     id: int
     user_id: int
+    use_graph_rag: bool = False
     created_at: datetime
     updated_at: datetime
     messages: List[MessageResponse] = []

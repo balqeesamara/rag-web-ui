@@ -43,6 +43,7 @@ def create_chat(
     chat = Chat(
         title=chat_in.title,
         user_id=current_user.id,
+        use_graph_rag=chat_in.use_graph_rag,
     )
     chat.knowledge_bases = knowledge_bases
     

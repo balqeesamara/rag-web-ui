@@ -9,9 +9,11 @@ import Breadcrumb from "@/components/ui/breadcrumb";
 export default function DashboardLayout({
   children,
   pageTitle,
+  graphRagActive,
 }: {
   children: React.ReactNode;
   pageTitle?: string;
+  graphRagActive?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -115,6 +117,11 @@ export default function DashboardLayout({
       <div className="lg:pl-64">
         <main className="min-h-screen py-6 px-4 sm:px-6 lg:px-8">
           <Breadcrumb overrideLastLabel={pageTitle} />
+          {graphRagActive && (
+            <span className="ml-2 inline-flex items-center rounded-full border border-violet-400/50 bg-violet-500/10 px-2 py-0.5 text-xs font-medium text-violet-400">
+              ⬡ GraphRAG
+            </span>
+          )}
           {children}
         </main>
       </div>

@@ -27,6 +27,7 @@ interface ChatMessage {
 interface Chat {
   id: number;
   title: string;
+  use_graph_rag: boolean;
   messages: ChatMessage[];
 }
 
@@ -42,6 +43,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   const { toast } = useToast();
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [chatTitle, setChatTitle] = useState<string | undefined>();
+  const [useGraphRag, setUseGraphRag] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -63,6 +65,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
     try {
       const data: Chat = await api.get(`/api/chat/${params.id}`);
       setChatTitle(data.title);
+      setUseGraphRag(data.use_graph_rag ?? false);
       const formattedMessages = data.messages.map((msg) => {
         if (msg.role !== "assistant" || !msg.content)
           return {
@@ -356,7 +359,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
   }, [processedMessages]);
 
   return (
-    <DashboardLayout pageTitle={chatTitle}>
+    <DashboardLayout pageTitle={chatTitle} graphRagActive={useGraphRag}>
       <div className="flex flex-col h-[calc(100vh-5rem)] relative">
         <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-[80px]">
           {processedMessages.map((message) =>
