@@ -24,11 +24,13 @@ USER REQUEST → [Frontend:3000] → [Backend API:8000] → [Retrieval Engine] �
 ### 1. Document Ingestion Pipeline
 
 ```
-Upload (PDF / DOCX / MD / TXT)
+Upload (PDF / DOCX / DOC / PPTX / PPT / XLSX / XLS /
+        TXT / MD / HTML / MHTML / CSV / JSON / XML /
+        MSG / EML / EPUB / JPG / PNG / GIF / BMP / TIFF / ZIP)
     │
     ▼
 document_processor.py
-    ├── Load & parse (PyPDFLoader / Docx2txtLoader / TextLoader)
+    ├── Convert to Markdown (MarkItDown — single unified parser for all formats; OCR via vision model when OPENAI_VISION_MODEL is set)
     ├── Chunk (RecursiveCharacterTextSplitter)
     ├── Embed chunks — async OpenAI-compatible API → dense vectors
     ├── Embed chunks — FastEmbed SPLADE → sparse vectors
@@ -46,7 +48,7 @@ chat_service.py
     ├── Identity shortcut  (hardcoded response for "who are you?" etc.)
     ├── Sliding-window context (3 most-recent turn-pairs verbatim)
     ├── Rolling summary    (older turns folded into a summary via LLM)
-    ├── Standalone question (context folded in → self-contained query)
+    ├── Standalone question (context folded in → self-contained query; uses OPENAI_QUERY_MODEL if set)
     │
     ▼
 retrieval.py — hybrid_search()
@@ -141,14 +143,28 @@ No single modality dominates all query types. Dense vectors handle paraphrases; 
 ### 2. CPU-First Sparse Embeddings
 SPLADE runs locally via FastEmbed (ONNX, CPU-optimised), avoiding any GPU dependency for retrieval while maintaining learned sparse expansion beyond raw BM25.
 
-### 3. Ingestion Always Indexes All Three Stores
+### 3. MarkItDown for Unified Document Parsing
+All document types are converted to Markdown by [MarkItDown](https://github.com/microsoft/markitdown) before chunking. A single parser handles 20+ formats (PDF, Office, spreadsheets, email, images via OCR, archives) and produces consistent Markdown output that the splitter can break on structural boundaries. Format-specific LangChain loaders (`PyPDFLoader`, `Docx2txtLoader`) are no longer used.
+
+When `OPENAI_VISION_MODEL` is set, the `markitdown-ocr` plugin is activated and embedded images in documents (scanned PDF pages, photos in DOCX/PPTX/XLSX) are sent to the vision model for OCR. Think-block traces emitted by reasoning vision models are stripped before the text is chunked. When `OPENAI_VISION_MODEL` is unset the behaviour is identical to before — no OCR, no external calls.
+
+### 4. Ingestion Always Indexes All Three Stores
 Per-leg retrieval can be toggled via `.env` without re-ingestion. This makes A/B testing retrieval configurations cheap — flip a flag, test, flip back.
 
-### 4. Sliding Window + Rolling Summary for Context
-Rather than truncating history or stuffing the full chat into the prompt, older turns are summarised by the LLM and folded into a rolling summary. The 3 most-recent turn-pairs are kept verbatim.
+### 5. Sliding Window + Rolling Summary for Context
+Rather than truncating history or stuffing the full chat into the prompt, older turns are summarised by the LLM and folded into a rolling summary. The 3 most-recent turn-pairs are kept verbatim. Both the query-rewriting step and the summarisation step use `OPENAI_QUERY_MODEL` when set, falling back to `OPENAI_MODEL`.
 
-### 5. OpenAI-Compatible API for LLM and Embeddings
-Both the chat model and the embedding model are called through the same `openai` SDK pointed at `OPENAI_API_BASE`. Works with OpenAI, LM Studio, Ollama, or any compatible server.
+### 6. OpenAI-Compatible API for LLM and Embeddings
+Four distinct model roles are supported, all pointing at OpenAI-compatible endpoints:
+
+| Variable | Role | Falls back to |
+|---|---|---|
+| `OPENAI_MODEL` | Response generation (RAG answers) | — (required) |
+| `OPENAI_QUERY_MODEL` | Query rewriting + rolling summarisation | `OPENAI_MODEL` |
+| `OPENAI_VISION_MODEL` | markitdown-ocr OCR during ingestion | unset = OCR disabled |
+| `OPENAI_EMBEDDINGS_MODEL` | Dense embeddings | — (required) |
+
+`OPENAI_VISION_API_BASE` lets the vision model live on a different server (e.g. a separate Ollama instance for a multimodal model). When unset it falls back to `OPENAI_API_BASE`.
 
 ---
 
@@ -164,6 +180,7 @@ Both the chat model and the embedding model are called through the same `openai`
 
 | Layer | Technology |
 |---|---|
+| Document Parsing | MarkItDown (Microsoft) — 20+ formats to Markdown; OCR via markitdown-ocr |
 | Frontend | Next.js 14, TypeScript, Tailwind CSS, shadcn/ui, Vercel AI SDK |
 | Backend | Python FastAPI, LangChain, SQLAlchemy, Alembic |
 | Vector DB | Qdrant (dense + sparse named vectors) |
@@ -181,6 +198,7 @@ git clone https://github.com/tangowhisky-dev/rag-web-ui.git
 cd rag-web-ui
 cp .env.example .env
 # Edit .env — set OPENAI_API_KEY, OPENAI_API_BASE, OPENAI_MODEL, OPENAI_EMBEDDINGS_MODEL, DENSE_EMBEDDING_DIM
+# Optional: OPENAI_QUERY_MODEL (query rewriting), OPENAI_VISION_MODEL (OCR), OPENAI_VISION_API_BASE
 docker compose up -d --build
 ```
 

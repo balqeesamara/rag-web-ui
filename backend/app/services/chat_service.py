@@ -48,7 +48,7 @@ def _make_llm() -> ChatOpenAI:
     return ChatOpenAI(
         temperature=0,
         streaming=True,
-        model=settings.OPENAI_MODEL,
+        model=settings.effective_query_model,
         openai_api_key=settings.OPENAI_API_KEY,
         openai_api_base=settings.OPENAI_API_BASE,
     )
@@ -122,7 +122,7 @@ async def _summarise_older_messages(
         base_url=settings.OPENAI_API_BASE,
     )
     response = await client.chat.completions.create(
-        model=settings.OPENAI_MODEL,
+        model=settings.effective_query_model,
         messages=[
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_prompt},

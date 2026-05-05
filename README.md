@@ -55,7 +55,9 @@ Retrieval uses **3-leg hybrid search**: dense vector (Qdrant cosine), sparse vec
 git clone https://github.com/tangowhisky-dev/rag-web-ui.git
 cd rag-web-ui
 cp .env.example .env
-# Edit .env — set OPENAI_API_KEY, OPENAI_API_BASE, OPENAI_MODEL, OPENAI_EMBEDDINGS_MODEL, DENSE_EMBEDDING_DIM
+# Edit .env — set OPENAI_API_KEY, OPENAI_API_BASE, OPENAI_MODEL, OPENAI_EMBEDDINGS_MODEL,
+#              DENSE_EMBEDDING_DIM.  Optionally set OPENAI_QUERY_MODEL (query rewriting),
+#              OPENAI_VISION_MODEL (OCR), and OPENAI_VISION_API_BASE.
 docker compose up -d --build
 ```
 
@@ -69,20 +71,25 @@ Copy `.env.example` to `.env` and set these values:
 
 ### LLM & Embeddings
 
-| Variable | Description | Example |
-|---|---|---|
-| `OPENAI_API_KEY` | API key for your LLM provider | `sk-...` or `lmstudio` |
-| `OPENAI_API_BASE` | Base URL of OpenAI-compatible API | `https://api.openai.com/v1` |
-| `OPENAI_MODEL` | Chat model name | `gpt-4o` |
-| `OPENAI_EMBEDDINGS_MODEL` | Embedding model name | `text-embedding-3-small` |
-| `DENSE_EMBEDDING_DIM` | Output dimension of the embedding model | `1536` for OpenAI, `1024` for qwen3-0.6b |
+| Variable | Required | Description | Example |
+|---|---|---|---|
+| `OPENAI_API_KEY` | yes | API key for your LLM provider | `sk-...` or `lmstudio` |
+| `OPENAI_API_BASE` | yes | Base URL of OpenAI-compatible API | `https://api.openai.com/v1` |
+| `OPENAI_MODEL` | yes | Response-generation model | `gpt-4o` |
+| `OPENAI_QUERY_MODEL` | no | Model for query rewriting and rolling summarisation. Falls back to `OPENAI_MODEL` when unset. A smaller/faster model works well here. | `gpt-4o-mini` |
+| `OPENAI_VISION_MODEL` | no | Multimodal model for markitdown-ocr OCR of scanned PDFs and embedded images. Leave unset to disable OCR. | `gpt-4o-mini` |
+| `OPENAI_VISION_API_BASE` | no | Base URL for the vision model when it lives on a different server. Falls back to `OPENAI_API_BASE`. | `http://host.docker.internal:11434/v1` |
+| `OPENAI_EMBEDDINGS_MODEL` | yes | Embedding model name | `text-embedding-3-small` |
+| `DENSE_EMBEDDING_DIM` | yes | Output dimension of the embedding model | `1536` for OpenAI, `1024` for qwen3-0.6b |
 
 **Using a local model server (e.g. LM Studio):**
 ```env
-OPENAI_API_KEY=lmstudio
+OPENAI_API_KEY=***
 OPENAI_API_BASE=http://host.docker.internal:1234/v1
-OPENAI_MODEL=your-model-name
-OPENAI_EMBEDDINGS_MODEL=your-embedding-model-name
+OPENAI_MODEL=your-chat-model
+OPENAI_QUERY_MODEL=your-fast-model        # optional — reuse OPENAI_MODEL if unset
+OPENAI_VISION_MODEL=your-vision-model     # optional — enables OCR for scanned PDFs / images
+OPENAI_EMBEDDINGS_MODEL=your-embedding-model
 DENSE_EMBEDDING_DIM=1024
 ```
 
@@ -220,7 +227,9 @@ docker compose -f docker-compose.dev.yml up -d --build backend
 
 ## Features
 
-- Upload PDF, DOCX, Markdown, and plain text files
+- Upload PDF, DOCX, DOC, PPTX, PPT, XLSX, XLS, Markdown, plain text, HTML, CSV, JSON, XML, email (MSG/EML), EPUB, images (OCR), and ZIP archives (see [ingestion pipeline](docs/ingestion-pipeline.md) for full format list)
+- Optional OCR for scanned PDFs and embedded images via `markitdown-ocr` — enabled by setting `OPENAI_VISION_MODEL`
+- Separate model for query rewriting and summarisation via `OPENAI_QUERY_MODEL` (falls back to `OPENAI_MODEL`)
 - Automatic chunking, embedding, and incremental updates
 - 3-leg hybrid search: dense vector + SPLADE sparse + MySQL full-text
 - Multi-turn chat with source citations

@@ -9,6 +9,7 @@ RUN apt-get update && apt-get install -y \
   pkg-config \
   netcat-traditional \
   curl \
+  ffmpeg \
   && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements file

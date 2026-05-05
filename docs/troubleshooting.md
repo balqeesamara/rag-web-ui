@@ -83,6 +83,9 @@ Common causes:
 - **Embedding model mismatch**: `DENSE_EMBEDDING_DIM` must match the actual output dimension of `OPENAI_EMBEDDINGS_MODEL`. Check the model's spec.
 - **SPLADE model not downloaded**: On first run, FastEmbed downloads `prithivida/Splade_PP_en_v1` (~500 MB). If the container restarts mid-download, delete the incomplete entry in `./assets/fastembed/` and retry.
 - **LM Studio not running**: Verify `OPENAI_API_BASE` is reachable: `curl http://localhost:1234/v1/models`
+- **OCR not working**: Ensure `OPENAI_VISION_MODEL` is set to a multimodal model and that the model is reachable at `OPENAI_API_BASE` (or `OPENAI_VISION_API_BASE` if set). Check backend logs for `[markitdown] OCR enabled` on startup.
+- **OCR calls failing / empty text**: The vision model must support the OpenAI chat completions API with image content. Test it directly: `curl $OPENAI_API_BASE/chat/completions` with a base64 image payload.
+- **Think-block noise in chunks**: If OCR output contains raw `<think>...</think>` text in retrieved chunks, confirm you are running the latest `document_processor.py` — stripping was added as part of the markitdown-ocr integration. Re-ingest affected documents.
 
 ### SPLADE Model Download Issues
 
