@@ -433,7 +433,7 @@ export const Answer: FC<{
   // async fetch), instead of continuous uncontrolled remounts during streaming.
   const citationInfoKey = Object.keys(citationInfoMap).sort().join(",");
 
-  if (!markdown) {
+  if (!markdown && !rewrittenQuery && (!retrievedContext || retrievedContext.length === 0)) {
     return (
       <div className="flex flex-col gap-2">
         <Skeleton className="max-w-sm h-4 bg-zinc-200" />
@@ -453,6 +453,13 @@ export const Answer: FC<{
       )}
       {retrievedContext && retrievedContext.filter(d => d.metadata?.source === "graph").length > 0 && (
         <RetrievedGraphBlock docs={retrievedContext.filter(d => d.metadata?.source === "graph")} />
+      )}
+      {!markdown && (
+        <div className="flex flex-col gap-2 mt-2">
+          <Skeleton className="max-w-sm h-4 bg-zinc-200" />
+          <Skeleton className="max-w-lg h-4 bg-zinc-200" />
+          <Skeleton className="max-w-2xl h-4 bg-zinc-200" />
+        </div>
       )}
       {parsedContent.thinkContent !== null && (
         <ThinkBlock

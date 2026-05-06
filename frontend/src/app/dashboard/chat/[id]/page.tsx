@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
+import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Send, User } from "lucide-react";
 import DashboardLayout from "@/components/layout/dashboard-layout";
@@ -213,20 +214,52 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       return;
     }
 
+    // 1: rewritten query — emitted right after step 1, before retrieval
+    if (trimmedLine.startsWith("1:")) {
+      try {
+        const payload = JSON.parse(trimmedLine.slice(2)) as { rewritten_query: string };
+        appendAssistantChunk(assistantId, (message) => ({
+          ...message,
+          rewrittenQuery: payload.rewritten_query,
+        }));
+      } catch (e) {
+        console.error("Failed to parse rewritten_query event:", e);
+      }
+      return;
+    }
+
+    // 2: retrieved context — emitted right after step 2, before LLM starts
+    if (trimmedLine.startsWith("2:")) {
+      try {
+        const payload = JSON.parse(trimmedLine.slice(2)) as {
+          context: Array<{ page_content: string; metadata: Record<string, any> }>;
+        };
+        const citations: Citation[] = payload.context.map((doc, index) => ({
+          id: index + 1,
+          text: doc.page_content,
+          metadata: doc.metadata,
+        }));
+        appendAssistantChunk(assistantId, (message) => ({
+          ...message,
+          citations,
+          retrievedContext: payload.context,
+        }));
+      } catch (e) {
+        console.error("Failed to parse context event:", e);
+      }
+      return;
+    }
+
     if (trimmedLine.startsWith("0:")) {
       try {
         const payload = JSON.parse(trimmedLine.slice(2)) as string;
 
         if (payload.includes("__LLM_RESPONSE__")) {
-          const [base64Part, initialResponseText] = payload.split(
-            "__LLM_RESPONSE__"
-          );
-          const { citations, rewrittenQuery, retrievedContext } = parseContextData(base64Part);
+          const [, initialResponseText] = payload.split("__LLM_RESPONSE__");
+          // citations/rewrittenQuery/retrievedContext already set by 1:/2: events;
+          // only apply the initial response text chunk here
           appendAssistantChunk(assistantId, (message) => ({
             ...message,
-            citations,
-            rewrittenQuery,
-            retrievedContext,
             content: initialResponseText || message.content,
           }));
           return;
@@ -309,18 +342,27 @@ export default function ChatPage({ params }: { params: { id: string } }) {
 
       while (true) {
         const { value, done } = await reader.read();
-        if (done) {
-          break;
-        }
+        if (done) break;
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
         buffer = lines.pop() || "";
 
+        // Process step events (1:, 2:) with immediate flushSync so collapsibles
+        // appear before LLM tokens. Batch all token lines (0:) into a single
+        // state update per reader chunk — avoids one rAF per token.
+        let hasTokenLines = false;
         for (const line of lines) {
-          processStreamLine(line, assistantId);
-          await flushToBrowser();
+          const t = line.trim();
+          if (t.startsWith("1:") || t.startsWith("2:")) {
+            flushSync(() => processStreamLine(line, assistantId));
+          } else if (t) {
+            processStreamLine(line, assistantId);
+            hasTokenLines = true;
+          }
         }
+        // One yield per chunk keeps UI responsive without per-token rAF overhead
+        if (hasTokenLines) await flushToBrowser();
       }
 
       if (buffer.trim()) {
@@ -376,7 +418,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                   />
                 </div>
                 <div className="max-w-[80%] rounded-lg px-4 py-2 text-accent-foreground">
-                  {isLoading && !message.content ? (
+                  {isLoading && !message.content && !message.rewrittenQuery ? (
                     <div className="flex items-center space-x-1 py-2">
                       <div className="w-2 h-2 rounded-full bg-primary animate-bounce" />
                       <div className="w-2 h-2 rounded-full bg-primary animate-bounce [animation-delay:0.2s]" />

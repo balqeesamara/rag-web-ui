@@ -221,26 +221,36 @@ async def _rewrite_query(
         return query
 
     llm = _make_llm()
-    contextualize_q_prompt = ChatPromptTemplate.from_messages([
-        (
-            "system",
-            "Given a chat history and the latest user question "
-            "which might reference context in the chat history, "
-            "formulate a standalone question which can be understood "
-            "without the chat history. Do NOT answer the question. "
-            "Your only task is to rewrite the user's question as a fully self-contained question "
-            "that can be understood without the chat history. "
-            "Output ONLY the rewritten question — no explanations, no answers, no extra text. "
-            "If the question is already self-contained, output it unchanged. "
-            "Never answer the question.",
-        ),
-        MessagesPlaceholder("chat_history"),
-        ("human", "{input}"),
-    ])
-    condense_chain = contextualize_q_prompt | llm | StrOutputParser()
-    raw_rewrite = (await condense_chain.ainvoke(
-        {"input": query, "chat_history": recent_history}
-    )).strip()
+    # Build messages manually — avoids LangChain template curly-brace hazards
+    # and lets us set max_tokens to prevent the small model from answering instead of rewriting
+    system_msg = (
+        "You are a query rewriter for a retrieval system. "
+        "Given the chat history and the latest user message, rewrite the message "
+        "as a fully self-contained question or instruction, resolving any pronouns "
+        "or references (e.g. 'it', 'that paper', 'the model') using the chat history.\n\n"
+        "Output ONLY the rewritten message — one short sentence or phrase, maximum 30 words. "
+        "Do NOT answer. Do NOT explain. Do NOT add content. "
+        "If the message is already self-contained, copy it verbatim."
+    )
+    messages: list[dict] = [{"role": "system", "content": system_msg}]
+    for m in recent_history:
+        if isinstance(m, HumanMessage):
+            messages.append({"role": "user", "content": m.content})
+        elif isinstance(m, AIMessage):
+            # Truncate long AI responses to avoid flooding the rewrite context
+            messages.append({"role": "assistant", "content": m.content[:400]})
+    messages.append({"role": "user", "content": f"Rewrite this as a standalone query: {query}"})
+
+    from openai import AsyncOpenAI as _OAI
+    client = _OAI(api_key=settings.OPENAI_API_KEY, base_url=settings.OPENAI_API_BASE)
+    resp = await client.chat.completions.create(
+        model=settings.effective_query_model,
+        messages=messages,
+        max_tokens=60,
+        temperature=0,
+        stream=False,
+    )
+    raw_rewrite = (resp.choices[0].message.content or "").strip()
 
     had_think = bool(re.search(r"<think>", raw_rewrite))
     standalone = _strip_think(raw_rewrite) or query
@@ -328,6 +338,9 @@ async def generate_response(
         standalone_question = await _rewrite_query(query, recent_lc_history)
         logger.info("[STEP 1] standalone_question=%r", standalone_question)
 
+        # Emit rewritten query immediately — UI shows it without waiting for LLM
+        yield f'1:{json.dumps({"rewritten_query": standalone_question})}\n'
+
         # ── Step 2: Hybrid retrieval ───────────────────────────────────────
         logger.info("[STEP 2] hybrid_search | query=%r", standalone_question)
         docs = await hybrid_search(
@@ -341,14 +354,14 @@ async def generate_response(
             snippet = doc.page_content[:120].replace("\n", " ")
             logger.info("  chunk[%d] meta=%s | text=%r", i, doc.metadata, snippet)
 
-        # ── Step 3: Emit base64 context chunk ─────────────────────────────
+        # Emit retrieved context immediately — UI shows chunks before LLM starts
         serializable_context = [
-            {
-                "page_content": doc.page_content.replace('"', '\\"'),
-                "metadata": doc.metadata,
-            }
+            {"page_content": doc.page_content, "metadata": doc.metadata}
             for doc in docs
         ]
+        yield f'2:{json.dumps({"context": serializable_context})}\n'
+
+        # ── Step 3: Emit base64 context chunk (legacy, for DB persistence) ─
         base64_context = base64.b64encode(
             json.dumps({
                 "context": serializable_context,
