@@ -254,7 +254,9 @@ export const Answer: FC<{
   citations?: Citation[];
   rewrittenQuery?: string;
   retrievedContext?: ContextDoc[];
-}> = ({ markdown, citations = [], rewrittenQuery, retrievedContext }) => {
+  confidence?: "high" | "low" | "none";
+  suggestion?: string | null;
+}> = ({ markdown, citations = [], rewrittenQuery, retrievedContext, confidence, suggestion }) => {
   const [citationInfoMap, setCitationInfoMap] = useState<
     Record<string, CitationInfo>
   >({});
@@ -448,6 +450,18 @@ export const Answer: FC<{
   return (
     <div className="prose prose-sm max-w-full">
       {rewrittenQuery && <RewrittenQueryBlock query={rewrittenQuery} />}
+      {confidence === "none" && suggestion && (
+        <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 mb-2">
+          <span className="mt-0.5 shrink-0">⚠</span>
+          <span>{suggestion}</span>
+        </div>
+      )}
+      {confidence === "low" && suggestion && (
+        <div className="flex items-start gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800 mb-2">
+          <span className="mt-0.5 shrink-0">◐</span>
+          <span>{suggestion}</span>
+        </div>
+      )}
       {retrievedContext && retrievedContext.filter(d => d.metadata?.source !== "graph").length > 0 && (
         <RetrievedContextBlock docs={retrievedContext.filter(d => d.metadata?.source !== "graph")} />
       )}

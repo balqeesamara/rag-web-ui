@@ -307,6 +307,106 @@ def _rrf_merge(
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+def _run_leg(name: str, fn, *args) -> tuple[dict, str | None]:
+    """Run a single retrieval leg, catching any exception.
+    Returns (results_dict, error_message_or_None)."""
+    try:
+        return fn(*args), None
+    except Exception as exc:
+        logger.error("[LEG:%s] failed: %s", name, exc)
+        return {}, str(exc)
+
+
+async def hybrid_search_with_legs(
+    query: str,
+    kb_ids: List[int],
+    db: Session,
+    use_graph_rag: bool = False,
+) -> dict:
+    """
+    Like hybrid_search but returns a richer dict:
+      {
+        "docs": [...],
+        "retrieval_info": {
+          "legs": {
+            "dense":         {"status": "ok"|"failed"|"disabled", "count": N, "error": str|None},
+            "qdrant_sparse": {...},
+            "exact":         {...},
+            "graph":         {...},
+          },
+          "failed_legs": ["dense", ...],
+        }
+      }
+    Each leg runs independently — a failure in one never blocks the others.
+    """
+    top_k = settings.RETRIEVAL_TOP_K
+    pool  = top_k * 4
+
+    enabled = {
+        "dense":         settings.RETRIEVAL_DENSE_ENABLED,
+        "qdrant_sparse": settings.RETRIEVAL_QDRANT_SPARSE_ENABLED,
+        "exact":         settings.RETRIEVAL_EXACT_ENABLED,
+        "graph":         use_graph_rag and settings.RETRIEVAL_GRAPH_ENABLED,
+    }
+
+    legs: dict[str, dict] = {}
+
+    if enabled["dense"]:
+        results, err = _run_leg("dense", _dense_search, query, kb_ids, pool)
+        legs["dense"] = {"status": "failed" if err else "ok", "count": len(results), "error": err}
+        dense = results
+    else:
+        dense = {}
+        legs["dense"] = {"status": "disabled", "count": 0, "error": None}
+
+    if enabled["qdrant_sparse"]:
+        results, err = _run_leg("qdrant_sparse", _qdrant_sparse_search, query, kb_ids, pool)
+        legs["qdrant_sparse"] = {"status": "failed" if err else "ok", "count": len(results), "error": err}
+        qdrant_sparse = results
+    else:
+        qdrant_sparse = {}
+        legs["qdrant_sparse"] = {"status": "disabled", "count": 0, "error": None}
+
+    if enabled["exact"]:
+        results, err = _run_leg("exact", _exact_search, query, kb_ids, db, pool)
+        legs["exact"] = {"status": "failed" if err else "ok", "count": len(results), "error": err}
+        exact = results
+    else:
+        exact = {}
+        legs["exact"] = {"status": "disabled", "count": 0, "error": None}
+
+    graph: Dict[str, _Candidate] = {}
+    if enabled["graph"]:
+        try:
+            from app.services.graph_service import graph_search as _graph_search
+            graph_docs = _graph_search(query_text=query, kb_ids=kb_ids, top_k=pool)
+            for rank, doc in enumerate(graph_docs):
+                h = _content_hash(doc.page_content)
+                if h not in graph:
+                    graph[h] = _Candidate(doc=doc, content_hash=h, graph_rank=rank)
+            legs["graph"] = {"status": "ok", "count": len(graph), "error": None}
+        except Exception as exc:
+            logger.error("[LEG:graph] failed: %s", exc)
+            legs["graph"] = {"status": "failed", "count": 0, "error": str(exc)}
+    else:
+        legs["graph"] = {"status": "disabled", "count": 0, "error": None}
+
+    failed_legs = [k for k, v in legs.items() if v["status"] == "failed"]
+    if failed_legs:
+        logger.warning("hybrid_search_with_legs: failed legs=%s", failed_legs)
+
+    docs = _rrf_merge(dense, qdrant_sparse, exact, graph, top_k)
+    logger.info("hybrid_search_with_legs returned %d docs | failed_legs=%s", len(docs), failed_legs)
+
+    return {
+        "docs": docs,
+        "retrieval_info": {
+            "legs": legs,
+            "failed_legs": failed_legs,
+        },
+    }
+
+
 async def hybrid_search(
     query: str,
     kb_ids: List[int],

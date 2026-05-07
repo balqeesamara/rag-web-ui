@@ -16,6 +16,9 @@ interface Message {
   citations?: Citation[];
   rewrittenQuery?: string;
   retrievedContext?: Array<{ page_content: string; metadata: Record<string, any> }>;
+  confidence?: "high" | "low" | "none";
+  suggestion?: string | null;
+  failedLegs?: string[];
 }
 
 interface ChatMessage {
@@ -233,6 +236,9 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       try {
         const payload = JSON.parse(trimmedLine.slice(2)) as {
           context: Array<{ page_content: string; metadata: Record<string, any> }>;
+          confidence?: "high" | "low" | "none";
+          suggestion?: string | null;
+          failed_legs?: string[];
         };
         const citations: Citation[] = payload.context.map((doc, index) => ({
           id: index + 1,
@@ -243,6 +249,9 @@ export default function ChatPage({ params }: { params: { id: string } }) {
           ...message,
           citations,
           retrievedContext: payload.context,
+          confidence: payload.confidence,
+          suggestion: payload.suggestion,
+          failedLegs: payload.failed_legs,
         }));
       } catch (e) {
         console.error("Failed to parse context event:", e);
@@ -439,6 +448,8 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                           ? message.retrievedContext
                           : undefined
                       }
+                      confidence={message.confidence}
+                      suggestion={message.suggestion}
                     />
                   )}
                 </div>

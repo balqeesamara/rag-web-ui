@@ -15,7 +15,7 @@ from openai import AsyncOpenAI
 from app.core.config import settings
 from app.models.chat import Chat, Message
 from app.models.knowledge import KnowledgeBase
-from app.services.retrieval import hybrid_search
+from app.services.retrieval import hybrid_search_with_legs
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -343,23 +343,43 @@ async def generate_response(
 
         # ── Step 2: Hybrid retrieval ───────────────────────────────────────
         logger.info("[STEP 2] hybrid_search | query=%r", standalone_question)
-        docs = await hybrid_search(
+        retrieval_result = await hybrid_search_with_legs(
             query=standalone_question,
             kb_ids=knowledge_base_ids,
             db=db,
             use_graph_rag=chat.use_graph_rag if chat else False,
         )
-        logger.info("[STEP 2] returned %d docs", len(docs))
+        docs = retrieval_result["docs"]
+        retrieval_info = retrieval_result["retrieval_info"]
+        failed_legs = retrieval_info["failed_legs"]
+        logger.info("[STEP 2] returned %d docs | failed_legs=%s", len(docs), failed_legs)
         for i, doc in enumerate(docs):
             snippet = doc.page_content[:120].replace("\n", " ")
             logger.info("  chunk[%d] meta=%s | text=%r", i, doc.metadata, snippet)
 
-        # Emit retrieved context immediately — UI shows chunks before LLM starts
+        # ── Confidence scoring ─────────────────────────────────────────────
+        # "none"   → no docs at all
+        # "low"    → fewer than half of top_k returned, or any leg failed
+        # "high"   → full result set with no failures
+        _top_k = settings.RETRIEVAL_TOP_K
+        if len(docs) == 0:
+            confidence = "none"
+            suggestion = "No relevant documents found. Try rephrasing your question or using different keywords."
+        elif len(docs) < _top_k / 2 or failed_legs:
+            confidence = "low"
+            suggestion = "Few relevant documents found — try more specific keywords."
+            if failed_legs:
+                suggestion = f"Some knowledge sources were unavailable ({', '.join(failed_legs)}). Results may be incomplete."
+        else:
+            confidence = "high"
+            suggestion = None
+
+        # Emit retrieved context + confidence — UI renders this before LLM starts
         serializable_context = [
             {"page_content": doc.page_content, "metadata": doc.metadata}
             for doc in docs
         ]
-        yield f'2:{json.dumps({"context": serializable_context})}\n'
+        yield f'2:{json.dumps({"context": serializable_context, "confidence": confidence, "suggestion": suggestion, "failed_legs": failed_legs})}\n'
 
         # ── Step 3: Emit base64 context chunk (legacy, for DB persistence) ─
         base64_context = base64.b64encode(
@@ -491,13 +511,19 @@ async def generate_response(
 
         # ── Post-turn: schedule summary update (fire-and-forget) ──────────
         # Runs after the stream is fully consumed by the client.
-        asyncio.create_task(
+        def _log_task_error(task: asyncio.Task) -> None:
+            exc = task.exception()
+            if exc:
+                logger.error("[SUMMARY] background task raised: %s", exc)
+
+        task = asyncio.create_task(
             _maybe_update_summary(
                 chat_id=chat_id,
                 all_prior_messages=prior_messages,
                 existing_summary=existing_summary,
             )
         )
+        task.add_done_callback(_log_task_error)
 
     except Exception as e:
         error_message = f"Error generating response: {str(e)}"
