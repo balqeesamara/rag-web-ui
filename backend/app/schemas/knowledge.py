@@ -1,6 +1,14 @@
 from typing import Optional, List
-from datetime import datetime
-from pydantic import BaseModel
+from datetime import datetime, timezone
+from pydantic import BaseModel, field_serializer
+
+
+def _as_utc_iso(dt: datetime) -> str:
+    """Serialise a naive-UTC datetime to ISO 8601 with Z suffix.
+    MySQL stores datetimes without timezone info but they are always UTC."""
+    if dt is None:
+        return None
+    return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 class KnowledgeBaseBase(BaseModel):
     name: str
@@ -38,6 +46,9 @@ class DocumentUploadResponse(DocumentUploadBase):
     id: int
     created_at: datetime
     
+    @field_serializer("created_at")
+    def serialise_created_at(self, v): return _as_utc_iso(v)
+
     class Config:
         from_attributes = True
 
@@ -56,6 +67,9 @@ class ProcessingTask(ProcessingTaskBase):
     created_at: datetime
     updated_at: datetime
 
+    @field_serializer("created_at", "updated_at")
+    def serialise_datetimes(self, v): return _as_utc_iso(v)
+
     class Config:
         from_attributes = True
 
@@ -66,6 +80,9 @@ class DocumentResponse(DocumentBase):
     updated_at: datetime
     processing_tasks: List[ProcessingTask] = []
 
+    @field_serializer("created_at", "updated_at")
+    def serialise_datetimes(self, v): return _as_utc_iso(v)
+
     class Config:
         from_attributes = True
 
@@ -75,6 +92,9 @@ class KnowledgeBaseResponse(KnowledgeBaseBase):
     created_at: datetime
     updated_at: datetime
     documents: List[DocumentResponse] = []
+
+    @field_serializer("created_at", "updated_at")
+    def serialise_datetimes(self, v): return _as_utc_iso(v)
 
     class Config:
         from_attributes = True

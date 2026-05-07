@@ -263,13 +263,13 @@ def _exact_search(query: str, kb_ids: List[int], db: Session, candidates: int) -
 
 # ── RRF merge ─────────────────────────────────────────────────────────────────
 
-def _rrf_merge(
-    dense: Dict[str, _Candidate],
-    qdrant_sparse: Dict[str, _Candidate],
-    exact: Dict[str, _Candidate],
-    graph: Dict[str, _Candidate],
+def _rrf_merge_candidates(
+    dense: Dict[str, "_Candidate"],
+    qdrant_sparse: Dict[str, "_Candidate"],
+    exact: Dict[str, "_Candidate"],
+    graph: Dict[str, "_Candidate"],
     top_k: int,
-) -> List[LangchainDocument]:
+) -> list["_Candidate"]:
     merged: Dict[str, _Candidate] = {**dense}
 
     for h, c in qdrant_sparse.items():
@@ -302,7 +302,7 @@ def _rrf_merge(
             c.graph_rank if c.graph_rank >= 0 else "-",
             c.doc.page_content[:80],
         )
-    return [c.doc for c in ranked[:top_k]]
+    return ranked[:top_k]
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -395,7 +395,21 @@ async def hybrid_search_with_legs(
     if failed_legs:
         logger.warning("hybrid_search_with_legs: failed legs=%s", failed_legs)
 
-    docs = _rrf_merge(dense, qdrant_sparse, exact, graph, top_k)
+    candidates = _rrf_merge_candidates(dense, qdrant_sparse, exact, graph, top_k)
+
+    # Annotate each doc with which legs found it — used by confidence scoring
+    # (cross-leg agreement signal). Stored in metadata["_legs"] as a list of
+    # leg names so the scoring module can inspect it without touching internals.
+    docs: List[LangchainDocument] = []
+    for c in candidates:
+        contributing = []
+        if c.dense_rank >= 0:         contributing.append("dense")
+        if c.qdrant_sparse_rank >= 0: contributing.append("qdrant_sparse")
+        if c.exact_rank >= 0:         contributing.append("exact")
+        if c.graph_rank >= 0:         contributing.append("graph")
+        c.doc.metadata["_legs"] = contributing
+        docs.append(c.doc)
+
     logger.info("hybrid_search_with_legs returned %d docs | failed_legs=%s", len(docs), failed_legs)
 
     return {

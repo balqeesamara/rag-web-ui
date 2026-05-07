@@ -249,14 +249,70 @@ interface CitationInfo {
   document: DocumentInfo;
 }
 
+// ── Confidence bar ─────────────────────────────────────────────────────────────
+
+type ConfidenceLevel = "very_high" | "high" | "medium" | "low" | "none";
+
+const CONFIDENCE_CONFIG: Record<ConfidenceLevel, {
+  steps: number;   // how many of 4 steps are filled
+  label: string;
+  stepColor: string;
+  textColor: string;
+  bgColor: string;
+  borderColor: string;
+}> = {
+  very_high: { steps: 4, label: "Very High",  stepColor: "bg-emerald-500", textColor: "text-emerald-700", bgColor: "bg-emerald-50",  borderColor: "border-emerald-200" },
+  high:      { steps: 3, label: "High",       stepColor: "bg-green-500",   textColor: "text-green-700",   bgColor: "bg-green-50",    borderColor: "border-green-200"   },
+  medium:    { steps: 2, label: "Medium",     stepColor: "bg-yellow-500",  textColor: "text-yellow-700",  bgColor: "bg-yellow-50",   borderColor: "border-yellow-200"  },
+  low:       { steps: 1, label: "Low",        stepColor: "bg-orange-500",  textColor: "text-orange-700",  bgColor: "bg-orange-50",   borderColor: "border-orange-200"  },
+  none:      { steps: 0, label: "None",       stepColor: "bg-red-400",     textColor: "text-red-700",     bgColor: "bg-red-50",      borderColor: "border-red-200"     },
+};
+
+const ConfidenceBar: FC<{
+  level: ConfidenceLevel;
+  score?: number;
+  suggestion?: string | null;
+}> = ({ level, score, suggestion }) => {
+  const cfg = CONFIDENCE_CONFIG[level];
+  return (
+    <div className={`rounded-md border ${cfg.borderColor} ${cfg.bgColor} px-3 py-2 mb-3 not-prose`}>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`text-xs font-medium ${cfg.textColor} shrink-0`}>
+            Retrieval confidence
+          </span>
+          <span className={`text-xs font-semibold ${cfg.textColor} shrink-0`}>
+            {cfg.label}{score !== undefined ? ` · ${score}/100` : ""}
+          </span>
+        </div>
+        {/* stepped progress bar — 4 equal segments */}
+        <div className="flex gap-1 shrink-0">
+          {[1, 2, 3, 4].map(step => (
+            <div
+              key={step}
+              className={`h-2 w-7 rounded-sm transition-colors ${
+                step <= cfg.steps ? cfg.stepColor : "bg-zinc-200"
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+      {suggestion && (
+        <p className={`mt-1 text-xs ${cfg.textColor} opacity-80`}>{suggestion}</p>
+      )}
+    </div>
+  );
+};
+
 export const Answer: FC<{
   markdown: string;
   citations?: Citation[];
   rewrittenQuery?: string;
   retrievedContext?: ContextDoc[];
-  confidence?: "high" | "low" | "none";
+  confidence?: "very_high" | "high" | "medium" | "low" | "none";
+  confidenceScore?: number;
   suggestion?: string | null;
-}> = ({ markdown, citations = [], rewrittenQuery, retrievedContext, confidence, suggestion }) => {
+}> = ({ markdown, citations = [], rewrittenQuery, retrievedContext, confidence, confidenceScore, suggestion }) => {
   const [citationInfoMap, setCitationInfoMap] = useState<
     Record<string, CitationInfo>
   >({});
@@ -450,15 +506,12 @@ export const Answer: FC<{
   return (
     <div className="prose prose-sm max-w-full">
       {rewrittenQuery && <RewrittenQueryBlock query={rewrittenQuery} />}
+      {confidence && confidence !== "none" && (
+        <ConfidenceBar level={confidence} score={confidenceScore} suggestion={suggestion} />
+      )}
       {confidence === "none" && suggestion && (
         <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 mb-2">
           <span className="mt-0.5 shrink-0">⚠</span>
-          <span>{suggestion}</span>
-        </div>
-      )}
-      {confidence === "low" && suggestion && (
-        <div className="flex items-start gap-2 rounded-md border border-yellow-200 bg-yellow-50 px-3 py-2 text-sm text-yellow-800 mb-2">
-          <span className="mt-0.5 shrink-0">◐</span>
           <span>{suggestion}</span>
         </div>
       )}

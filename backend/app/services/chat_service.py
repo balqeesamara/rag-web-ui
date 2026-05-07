@@ -16,6 +16,7 @@ from app.core.config import settings
 from app.models.chat import Chat, Message
 from app.models.knowledge import KnowledgeBase
 from app.services.retrieval import hybrid_search_with_legs
+from app.services.confidence import score_retrieval
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -358,28 +359,16 @@ async def generate_response(
             logger.info("  chunk[%d] meta=%s | text=%r", i, doc.metadata, snippet)
 
         # ── Confidence scoring ─────────────────────────────────────────────
-        # "none"   → no docs at all
-        # "low"    → fewer than half of top_k returned, or any leg failed
-        # "high"   → full result set with no failures
-        _top_k = settings.RETRIEVAL_TOP_K
-        if len(docs) == 0:
-            confidence = "none"
-            suggestion = "No relevant documents found. Try rephrasing your question or using different keywords."
-        elif len(docs) < _top_k / 2 or failed_legs:
-            confidence = "low"
-            suggestion = "Few relevant documents found — try more specific keywords."
-            if failed_legs:
-                suggestion = f"Some knowledge sources were unavailable ({', '.join(failed_legs)}). Results may be incomplete."
-        else:
-            confidence = "high"
-            suggestion = None
+        confidence_result = score_retrieval(docs, retrieval_info)
+        confidence = confidence_result.level
+        suggestion = confidence_result.suggestion
 
         # Emit retrieved context + confidence — UI renders this before LLM starts
         serializable_context = [
             {"page_content": doc.page_content, "metadata": doc.metadata}
             for doc in docs
         ]
-        yield f'2:{json.dumps({"context": serializable_context, "confidence": confidence, "suggestion": suggestion, "failed_legs": failed_legs})}\n'
+        yield f'2:{json.dumps({"context": serializable_context, "confidence": confidence, "score": confidence_result.score, "suggestion": suggestion, "failed_legs": failed_legs, "breakdown": confidence_result.breakdown})}\n'
 
         # ── Step 3: Emit base64 context chunk (legacy, for DB persistence) ─
         base64_context = base64.b64encode(

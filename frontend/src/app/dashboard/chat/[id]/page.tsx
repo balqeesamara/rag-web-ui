@@ -16,7 +16,9 @@ interface Message {
   citations?: Citation[];
   rewrittenQuery?: string;
   retrievedContext?: Array<{ page_content: string; metadata: Record<string, any> }>;
-  confidence?: "high" | "low" | "none";
+  confidence?: "very_high" | "high" | "medium" | "low" | "none";
+  confidenceScore?: number;
+  confidenceBreakdown?: Record<string, unknown>;
   suggestion?: string | null;
   failedLegs?: string[];
 }
@@ -236,9 +238,11 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       try {
         const payload = JSON.parse(trimmedLine.slice(2)) as {
           context: Array<{ page_content: string; metadata: Record<string, any> }>;
-          confidence?: "high" | "low" | "none";
+          confidence?: "very_high" | "high" | "medium" | "low" | "none";
+          score?: number;
           suggestion?: string | null;
           failed_legs?: string[];
+          breakdown?: Record<string, unknown>;
         };
         const citations: Citation[] = payload.context.map((doc, index) => ({
           id: index + 1,
@@ -250,6 +254,8 @@ export default function ChatPage({ params }: { params: { id: string } }) {
           citations,
           retrievedContext: payload.context,
           confidence: payload.confidence,
+          confidenceScore: payload.score,
+          confidenceBreakdown: payload.breakdown,
           suggestion: payload.suggestion,
           failedLegs: payload.failed_legs,
         }));
@@ -449,6 +455,7 @@ export default function ChatPage({ params }: { params: { id: string } }) {
                           : undefined
                       }
                       confidence={message.confidence}
+                      confidenceScore={message.confidenceScore}
                       suggestion={message.suggestion}
                     />
                   )}
