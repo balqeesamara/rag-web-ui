@@ -229,9 +229,22 @@ async def _rewrite_query(
         "Given the chat history and the latest user message, rewrite the message "
         "as a fully self-contained question or instruction, resolving any pronouns "
         "or references (e.g. 'it', 'that paper', 'the model') using the chat history.\n\n"
-        "Output ONLY the rewritten message — one short sentence or phrase, maximum 30 words. "
-        "Do NOT answer. Do NOT explain. Do NOT add content. "
-        "If the message is already self-contained, copy it verbatim."
+        "Rules:\n"
+        "1. Preserve the EXACT specificity and scope of the original question. "
+        "Do NOT broaden, generalise, or expand the question.\n"
+        "2. Only add context that is NECESSARY to make an ambiguous reference clear. "
+        "Do NOT add context if the question is already clear on its own.\n"
+        "3. If the question asks about a specific item (e.g. 'question 1', 'section 3'), "
+        "keep that specific item — do NOT expand it to all items.\n"
+        "4. Output ONLY the rewritten question — one short sentence, maximum 30 words. "
+        "Do NOT answer. Do NOT explain.\n\n"
+        "Examples:\n"
+        "History: [user: summarise assignment 1, assistant: ...summary...]\n"
+        "Query: 'what is question 1'\n"
+        "Output: 'What is Question 1 in Assignment 1?'\n\n"
+        "History: [user: tell me about the StreamVC paper]\n"
+        "Query: 'what model does it use'\n"
+        "Output: 'What model architecture does StreamVC use?'"
     )
     messages: list[dict] = [{"role": "system", "content": system_msg}]
     for m in recent_history:
@@ -267,7 +280,11 @@ async def generate_response(
     messages: dict,
     knowledge_base_ids: List[int],
     chat_id: int,
-    db: Session
+    db: Session,
+    use_dense:     bool = True,
+    use_sparse:    bool = True,
+    use_exact:     bool = True,
+    use_graph_rag: bool = False,
 ) -> AsyncGenerator[str, None]:
     logger.info("=" * 70)
     logger.info("[CHAT] chat_id=%s | kb_ids=%s | query=%r", chat_id, knowledge_base_ids, query)
@@ -348,7 +365,10 @@ async def generate_response(
             query=standalone_question,
             kb_ids=knowledge_base_ids,
             db=db,
-            use_graph_rag=chat.use_graph_rag if chat else False,
+            use_dense=use_dense,
+            use_sparse=use_sparse,
+            use_exact=use_exact,
+            use_graph_rag=use_graph_rag,
         )
         docs = retrieval_result["docs"]
         retrieval_info = retrieval_result["retrieval_info"]
@@ -410,6 +430,7 @@ async def generate_response(
             "You will be given context documents numbered sequentially starting from 1.\n"
             "You MUST cite sources using EXACTLY this format: [citation:x] — for example: 'The sky is blue [citation:1].'\n"
             "Do NOT use any other citation format such as [1], (1), Context [1], or footnotes.\n"
+            "WRONG: 'The answer is 42 [1].'  RIGHT: 'The answer is 42 [citation:1].'\n"
             "If a sentence draws from multiple contexts, list all applicable citations: [citation:1] [citation:2].\n\n"
             "## General\n"
             "- Your answer must be correct, accurate, and written in a professional, unbiased tone.\n"

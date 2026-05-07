@@ -44,6 +44,9 @@ def create_chat(
         title=chat_in.title,
         user_id=current_user.id,
         use_graph_rag=chat_in.use_graph_rag,
+        use_dense=chat_in.use_dense,
+        use_sparse=chat_in.use_sparse,
+        use_exact=chat_in.use_exact,
     )
     chat.knowledge_bases = knowledge_bases
     
@@ -121,7 +124,11 @@ async def create_message(
             messages=messages,
             knowledge_base_ids=knowledge_base_ids,
             chat_id=chat_id,
-            db=db
+            db=db,
+            use_dense=chat.use_dense,
+            use_sparse=chat.use_sparse,
+            use_exact=chat.use_exact,
+            use_graph_rag=chat.use_graph_rag,
         ):
             yield chunk
 

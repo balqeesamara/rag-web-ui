@@ -34,6 +34,9 @@ class ChatBase(BaseModel):
 class ChatCreate(ChatBase):
     knowledge_base_ids: List[int]
     use_graph_rag: bool = False
+    use_dense:     bool = True
+    use_sparse:    bool = True
+    use_exact:     bool = True
 
 class ChatUpdate(ChatBase):
     knowledge_base_ids: Optional[List[int]] = None
@@ -42,6 +45,9 @@ class ChatResponse(ChatBase):
     id: int
     user_id: int
     use_graph_rag: bool = False
+    use_dense:     bool = True
+    use_sparse:    bool = True
+    use_exact:     bool = True
     created_at: datetime
     updated_at: datetime
     messages: List[MessageResponse] = []

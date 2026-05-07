@@ -146,7 +146,11 @@ export default function ChatPage({ params }: { params: { id: string } }) {
       .replace(/\[\[([cC])itation/g, "[citation")
       .replace(/[cC]itation:(\d+)]]/g, "citation:$1]")
       .replace(/\[\[([cC]itation:\d+)]](?!])/g, `[$1]`)
-      .replace(/\[[cC]itation:(\d+)]/g, "[citation]($1)");
+      .replace(/\[[cC]itation:(\d+)]/g, "[citation]($1)")
+      // Fallback: plain [N] that the model emits instead of [citation:N].
+      // Only match standalone bracketed numbers (not part of markdown list
+      // syntax "1." or already-converted "[citation](N)").
+      .replace(/(?<!\()\[(\d+)\](?!\()/g, "[citation]($1)");
   };
 
   const parseContextCitations = (base64Part: string): Citation[] => {

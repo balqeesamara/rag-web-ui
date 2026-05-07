@@ -31,9 +31,15 @@ router = APIRouter()
 class QueryRequest(BaseModel):
     question: str
     kb_ids: List[int]
+    # Per-request leg flags — AND-ed with global .env settings.
+    # Default all True so the endpoint behaves like the full hybrid pipeline
+    # unless the caller explicitly disables a leg for benchmarking.
+    use_dense:     bool = True
+    use_sparse:    bool = True
+    use_exact:     bool = True
     use_graph_rag: bool = False
-    # Pass False to skip LLM answer generation — useful when you only want
-    # retrieval metrics and don't want to spend LLM tokens.
+    # Pass False to skip LLM answer generation — retrieval-only benchmark runs
+    # are much faster and don't consume LLM tokens.
     generate_answer: bool = True
 
 
@@ -91,6 +97,9 @@ async def query(
         query=body.question,
         kb_ids=body.kb_ids,
         db=db,
+        use_dense=body.use_dense,
+        use_sparse=body.use_sparse,
+        use_exact=body.use_exact,
         use_graph_rag=body.use_graph_rag,
     )
     docs            = retrieval_result["docs"]

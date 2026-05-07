@@ -27,8 +27,9 @@ logger = logging.getLogger(__name__)
 
 # ── Module-level singletons (lazy) ────────────────────────────────────────────
 _neo4j_driver: Optional[neo4j.Driver] = None
-_kg_builder: Optional[SimpleKGPipeline] = None
 _embedder: Optional[OpenAIEmbeddings] = None
+# Note: SimpleKGPipeline is NOT a singleton — a fresh instance is created per
+# document build to avoid shared state across concurrent ingestion tasks.
 
 
 def _get_driver() -> neo4j.Driver:
@@ -52,23 +53,25 @@ def _get_embedder() -> OpenAIEmbeddings:
     return _embedder
 
 
-def _get_kg_builder() -> SimpleKGPipeline:
-    global _kg_builder
-    if _kg_builder is None:
-        llm = OpenAILLM(
-            model_name=settings.graphrag_model,
-            model_params={"temperature": 0},
-            base_url=settings.OPENAI_API_BASE,
-            api_key=settings.OPENAI_API_KEY,
-        )
-        embedder = _get_embedder()
-        _kg_builder = SimpleKGPipeline(
-            llm=llm,
-            driver=_get_driver(),
-            embedder=embedder,
-            from_pdf=False,  # we pass pre-converted text, not raw files
-        )
-    return _kg_builder
+def _make_kg_builder() -> SimpleKGPipeline:
+    """Create a new SimpleKGPipeline instance.
+
+    Called per-document rather than as a singleton — SimpleKGPipeline holds
+    internal pipeline state that is not safe to share across concurrent runs.
+    The driver and embedder are still singletons (stateless / thread-safe).
+    """
+    llm = OpenAILLM(
+        model_name=settings.graphrag_model,
+        model_params={"temperature": 0},
+        base_url=settings.OPENAI_API_BASE,
+        api_key=settings.OPENAI_API_KEY,
+    )
+    return SimpleKGPipeline(
+        llm=llm,
+        driver=_get_driver(),
+        embedder=_get_embedder(),
+        from_pdf=False,
+    )
 
 
 def _ensure_neo4j_vector_index(driver: neo4j.Driver, kb_id: int, dims: int) -> None:
@@ -115,7 +118,7 @@ async def build_graph_for_document(
     driver = _get_driver()
     _ensure_neo4j_vector_index(driver, kb_id, settings.DENSE_EMBEDDING_DIM)
 
-    builder = _get_kg_builder()
+    builder = _make_kg_builder()
     full_text = "\n\n".join(chunks)
 
     logger.info(

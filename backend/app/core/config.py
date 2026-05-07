@@ -84,7 +84,23 @@ class Settings(BaseSettings):
     FASTEMBED_CACHE_DIR: str = os.getenv("FASTEMBED_CACHE_DIR", "/tmp/fastembed_cache")
 
     # ── Retrieval ──────────────────────────────────────────────────────────────
-    RETRIEVAL_TOP_K: int = int(os.getenv("RETRIEVAL_TOP_K", "6"))
+    RETRIEVAL_TOP_K: int = int(os.getenv("RETRIEVAL_TOP_K", "10"))
+    # Minimum RRF score to include a chunk in the context passed to the LLM.
+    # RRF scores range roughly 0.003–0.02 for a 3-leg setup with K=60.
+    # Chunks below this threshold are dropped before the LLM sees them.
+    # Set to 0.0 to disable filtering.
+    RETRIEVAL_MIN_RRF_SCORE: float = float(os.getenv("RETRIEVAL_MIN_RRF_SCORE", "0.005"))
+
+    # ── Cross-encoder reranker ───────────────────────────────────────────────────
+    # When enabled, the top-K RRF candidates are re-scored by a dedicated
+    # cross-encoder model and re-ordered by relevance score before being passed
+    # to the LLM. More accurate than RRF alone for cross-KB disambiguation.
+    RERANKER_ENABLED: bool = os.getenv("RERANKER_ENABLED", "true").lower() == "true"
+    RERANKER_MODEL: str = os.getenv("RERANKER_MODEL", "cross-encoder/ms-marco-MiniLM-L-12-v2")
+    RERANKER_CACHE_DIR: str = os.getenv("RERANKER_CACHE_DIR", "/app/assets/reranker")
+    # How many chunks to keep after reranking. Must be <= RETRIEVAL_TOP_K.
+    # Reducing this keeps only the most relevant chunks, further limiting noise.
+    RERANKER_TOP_N: int = int(os.getenv("RERANKER_TOP_N", "5"))
 
     # ── Chunking ────────────────────────────────────────────────────────────────
     # WARNING: changing these values after documents have been ingested creates

@@ -291,6 +291,17 @@ def _rrf_merge_candidates(
             merged[h] = c
 
     ranked = sorted(merged.values(), key=lambda c: c.rrf_score, reverse=True)
+
+    # Drop chunks below the minimum RRF score threshold before applying top_k.
+    # This prevents low-signal chunks from unrelated documents flooding the context.
+    min_score = settings.RETRIEVAL_MIN_RRF_SCORE
+    if min_score > 0.0:
+        before = len(ranked)
+        ranked = [c for c in ranked if c.rrf_score >= min_score]
+        if len(ranked) < before:
+            logger.info("[RRF] score threshold=%.4f dropped %d/%d candidates",
+                        min_score, before - len(ranked), before)
+
     logger.info("[RRF] total unique candidates=%d | returning top_k=%d", len(ranked), top_k)
     for i, c in enumerate(ranked[:top_k]):
         logger.info(
@@ -321,6 +332,9 @@ async def hybrid_search_with_legs(
     query: str,
     kb_ids: List[int],
     db: Session,
+    use_dense:     bool = True,
+    use_sparse:    bool = True,
+    use_exact:     bool = True,
     use_graph_rag: bool = False,
 ) -> dict:
     """
@@ -338,14 +352,17 @@ async def hybrid_search_with_legs(
         }
       }
     Each leg runs independently — a failure in one never blocks the others.
+
+    Per-call flags AND with global .env settings: a leg is only enabled when
+    both the chat-level flag and the global env flag are True.
     """
     top_k = settings.RETRIEVAL_TOP_K
     pool  = top_k * 4
 
     enabled = {
-        "dense":         settings.RETRIEVAL_DENSE_ENABLED,
-        "qdrant_sparse": settings.RETRIEVAL_QDRANT_SPARSE_ENABLED,
-        "exact":         settings.RETRIEVAL_EXACT_ENABLED,
+        "dense":         use_dense    and settings.RETRIEVAL_DENSE_ENABLED,
+        "qdrant_sparse": use_sparse   and settings.RETRIEVAL_QDRANT_SPARSE_ENABLED,
+        "exact":         use_exact    and settings.RETRIEVAL_EXACT_ENABLED,
         "graph":         use_graph_rag and settings.RETRIEVAL_GRAPH_ENABLED,
     }
 
@@ -411,6 +428,17 @@ async def hybrid_search_with_legs(
         docs.append(c.doc)
 
     logger.info("hybrid_search_with_legs returned %d docs | failed_legs=%s", len(docs), failed_legs)
+
+    # ── Cross-encoder reranking (optional) ────────────────────────────────────
+    # Applied after RRF merge so the reranker only sees the top-K candidates,
+    # not the full pool. Non-fatal — a reranker failure falls back to RRF order.
+    if settings.RERANKER_ENABLED and docs:
+        try:
+            from app.services.reranker import rerank
+            docs = rerank(query=query, docs=docs, top_n=settings.RERANKER_TOP_N)
+            logger.info("hybrid_search_with_legs: reranker reduced to %d docs", len(docs))
+        except Exception as exc:
+            logger.warning("hybrid_search_with_legs: reranker failed (using RRF order): %s", exc)
 
     return {
         "docs": docs,

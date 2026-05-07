@@ -12,402 +12,579 @@ Pipeline
 3. Create a fresh knowledge base
 4. Upload article texts as plain-text documents
 5. Wait for ingest to finish (poll /query/kb/{id}/ingest-status)
-6. Run each question through POST /query
-7. Score answers with token-F1 and exact-match (no LLM judge needed)
-8. Write results to eval_results.json
+6. For each RETRIEVAL_CONFIG, run every question through POST /query
+7. Score with token-F1 and exact-match
+8. Write per-config results + comparison table to eval_results.json
+
+Retrieval configs
+-----------------
+The harness runs every question through multiple leg combinations so you can
+see the effect of each source in isolation and in combination:
+
+  exact_only      — keyword search only (baseline)
+  dense_only      — dense vectors only
+  sparse_only     — sparse vectors (SPLADE) only
+  dense+sparse    — vector legs combined, no keyword
+  dense+exact     — dense + keyword
+  sparse+exact    — sparse + keyword
+  all_3           — full hybrid (no graph)
+  all_3+graph     — full hybrid + knowledge graph (opt-in, skipped if graph=False)
+
+Each config sends different use_dense / use_sparse / use_exact / use_graph_rag
+flags to POST /api/query. The same question set is reused across all configs —
+no re-ingestion needed.
+
+RRF behaviour per config
+------------------------
+With N legs enabled, RRF scores each chunk as:
+
+  score = Σ  weight_leg / (60 + rank_leg)   for each leg where chunk appeared
+
+A chunk absent from a disabled leg contributes 0 from that leg but can still
+surface via the remaining legs. The weights come from the server's .env:
+
+  HYBRID_DENSE_WEIGHT          default 0.5
+  HYBRID_QDRANT_SPARSE_WEIGHT  default 0.3
+  HYBRID_EXACT_WEIGHT          default 0.2
+
+So with only dense enabled:  score = 0.5 / (60 + rank)  → pure cosine ranking
+With dense+exact:            score = 0.5/(60+dr) + 0.2/(60+er)
 
 Usage
 -----
-    pip install requests datasets tqdm
-    python eval_harness.py \
-        --base-url http://localhost:8000/api \
-        --username eval_user \
-        --password eval_pass \
-        --articles 20 \
-        --questions 60
+    pip install -r requirements.txt
+    python eval_harness.py \\
+        --base-url http://localhost:8000/api \\
+        --username eval_user \\
+        --password eval_pass \\
+        --articles 20 \\
+        --questions 60 \\
+        --no-graph            # skip the all_3+graph config (default: skipped)
+        --graph               # include graph config (requires Neo4j + GraphRAG)
+        --generate-answers    # run LLM answer generation (slower, costs tokens)
 
-All flags have defaults — just set BASE_URL / USERNAME / PASSWORD as env vars
-or pass them on the command line.
+All flags have defaults — set BASE_URL / USERNAME / PASSWORD as env vars or
+pass them on the command line.
 """
 
 import argparse
 import json
-import logging
 import os
-import re
+import string
 import sys
 import time
-from collections import Counter
-from dataclasses import asdict, dataclass, field
-from datetime import datetime
-from pathlib import Path
-from typing import Any, Optional
+from collections import Counter, defaultdict
+from typing import Any
 
 import requests
 from tqdm import tqdm
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)s  %(message)s")
-log = logging.getLogger("eval")
+# ── Retrieval configurations ───────────────────────────────────────────────────
+
+RETRIEVAL_CONFIGS = [
+    {
+        "name":        "exact_only",
+        "label":       "Keyword only (baseline)",
+        "use_exact":   True,
+        "use_dense":   False,
+        "use_sparse":  False,
+        "use_graph_rag": False,
+    },
+    {
+        "name":        "dense_only",
+        "label":       "Dense vectors only",
+        "use_exact":   False,
+        "use_dense":   True,
+        "use_sparse":  False,
+        "use_graph_rag": False,
+    },
+    {
+        "name":        "sparse_only",
+        "label":       "Sparse vectors only (SPLADE)",
+        "use_exact":   False,
+        "use_dense":   False,
+        "use_sparse":  True,
+        "use_graph_rag": False,
+    },
+    {
+        "name":        "dense+sparse",
+        "label":       "Dense + Sparse (no keyword)",
+        "use_exact":   False,
+        "use_dense":   True,
+        "use_sparse":  True,
+        "use_graph_rag": False,
+    },
+    {
+        "name":        "dense+exact",
+        "label":       "Dense + Keyword",
+        "use_exact":   True,
+        "use_dense":   True,
+        "use_sparse":  False,
+        "use_graph_rag": False,
+    },
+    {
+        "name":        "sparse+exact",
+        "label":       "Sparse + Keyword",
+        "use_exact":   True,
+        "use_dense":   False,
+        "use_sparse":  True,
+        "use_graph_rag": False,
+    },
+    {
+        "name":        "all_3",
+        "label":       "Full hybrid (dense + sparse + keyword)",
+        "use_exact":   True,
+        "use_dense":   True,
+        "use_sparse":  True,
+        "use_graph_rag": False,
+    },
+    {
+        "name":        "all_3+graph",
+        "label":       "Full hybrid + Knowledge Graph",
+        "use_exact":   True,
+        "use_dense":   True,
+        "use_sparse":  True,
+        "use_graph_rag": True,
+        "graph_only":  True,   # skipped unless --graph flag is passed
+    },
+]
+
+# ── Scoring ────────────────────────────────────────────────────────────────────
+
+def _normalise(text: str) -> list[str]:
+    """Lowercase, strip punctuation, tokenise."""
+    text = text.lower()
+    text = text.translate(str.maketrans("", "", string.punctuation))
+    return text.split()
 
 
-# ── CLI args ───────────────────────────────────────────────────────────────────
+def token_f1(prediction: str, ground_truths: list[str]) -> float:
+    """Max token-F1 over all ground truth answers (official SQuAD metric)."""
+    best = 0.0
+    pred_tokens = Counter(_normalise(prediction))
+    for gt in ground_truths:
+        gt_tokens = Counter(_normalise(gt))
+        common = sum((pred_tokens & gt_tokens).values())
+        if common == 0:
+            continue
+        precision = common / sum(pred_tokens.values())
+        recall    = common / sum(gt_tokens.values())
+        f1 = 2 * precision * recall / (precision + recall)
+        best = max(best, f1)
+    return best
 
-def parse_args() -> argparse.Namespace:
-    p = argparse.ArgumentParser(description="RAG Evaluation Harness")
-    p.add_argument("--base-url",   default=os.getenv("RAG_BASE_URL", "http://localhost:8000/api"))
-    p.add_argument("--username",   default=os.getenv("RAG_USERNAME", "admin"))
-    p.add_argument("--password",   default=os.getenv("RAG_PASSWORD", "admin"))
-    p.add_argument("--articles",   type=int, default=20, help="Number of SQuAD articles to ingest")
-    p.add_argument("--questions",  type=int, default=60, help="Max questions to evaluate")
-    p.add_argument("--output",     default="eval_results.json")
-    p.add_argument("--no-cleanup", action="store_true", help="Keep the eval KB after run")
-    p.add_argument("--dataset",    default="squad", choices=["squad", "squad_v2"],
-                   help="HuggingFace dataset name")
-    return p.parse_args()
+
+def exact_match(prediction: str, ground_truths: list[str]) -> float:
+    """1.0 if normalised prediction matches any ground truth exactly."""
+    pred = " ".join(_normalise(prediction))
+    for gt in ground_truths:
+        if pred == " ".join(_normalise(gt)):
+            return 1.0
+    return 0.0
+
+
+def retrieval_hit(contexts: list[dict], ground_truths: list[str]) -> float:
+    """1.0 if any ground truth answer appears (case-insensitive) in any chunk."""
+    all_text = " ".join(c["content"].lower() for c in contexts)
+    for gt in ground_truths:
+        if " ".join(_normalise(gt)) in " ".join(_normalise(all_text)):
+            return 1.0
+    return 0.0
 
 
 # ── HTTP client ────────────────────────────────────────────────────────────────
 
 class RAGClient:
-    def __init__(self, base_url: str):
-        self.base_url = base_url.rstrip("/")
-        self.session  = requests.Session()
-        self.session.headers["Content-Type"] = "application/json"
+    def __init__(self, base_url: str, timeout: int = 60):
+        self.base = base_url.rstrip("/")
+        self.timeout = timeout
+        self.token: str | None = None
+        self.session = requests.Session()
 
-    def _url(self, path: str) -> str:
-        return f"{self.base_url}{path}"
+    def _headers(self) -> dict:
+        h = {"Content-Type": "application/json"}
+        if self.token:
+            h["Authorization"] = f"Bearer {self.token}"
+        return h
+
+    def register(self, username: str, password: str, email: str) -> bool:
+        r = self.session.post(
+            f"{self.base}/auth/register",
+            json={"username": username, "password": password, "email": email},
+            timeout=self.timeout,
+        )
+        return r.status_code in (200, 201, 400)  # 400 = already exists
 
     def login(self, username: str, password: str) -> None:
-        resp = self.session.post(
-            self._url("/auth/token"),
+        r = self.session.post(
+            f"{self.base}/auth/token",
             data={"username": username, "password": password},
             headers={"Content-Type": "application/x-www-form-urlencoded"},
+            timeout=self.timeout,
         )
-        resp.raise_for_status()
-        token = resp.json()["access_token"]
-        self.session.headers["Authorization"] = f"Bearer {token}"
-        log.info("Authenticated as %s", username)
-
-    def register(self, username: str, password: str, email: str) -> None:
-        resp = self.session.post(
-            self._url("/auth/register"),
-            json={"username": username, "password": password, "email": email},
-        )
-        if resp.status_code not in (200, 201, 400):
-            resp.raise_for_status()
-        # 400 = already exists — fine
+        r.raise_for_status()
+        self.token = r.json()["access_token"]
 
     def create_kb(self, name: str, description: str = "") -> int:
-        resp = self.session.post(
-            self._url("/knowledge-base"),
+        r = self.session.post(
+            f"{self.base}/knowledge-base",
             json={"name": name, "description": description},
+            headers=self._headers(),
+            timeout=self.timeout,
         )
-        resp.raise_for_status()
-        kb_id = resp.json()["id"]
-        log.info("Created KB id=%d  name=%r", kb_id, name)
-        return kb_id
+        r.raise_for_status()
+        return r.json()["id"]
 
-    def delete_kb(self, kb_id: int) -> None:
-        resp = self.session.delete(self._url(f"/knowledge-base/{kb_id}"))
-        resp.raise_for_status()
-        log.info("Deleted KB id=%d", kb_id)
-
-    def upload_text(self, kb_id: int, filename: str, content: str) -> list[dict]:
-        """Upload a plain-text blob as a .txt file. Returns upload result list."""
-        resp = self.session.post(
-            self._url(f"/knowledge-base/{kb_id}/documents/upload"),
-            files={"files": (filename, content.encode(), "text/plain")},
-            headers={k: v for k, v in self.session.headers.items() if k != "Content-Type"},
+    def upload_text(self, kb_id: int, filename: str, content: str) -> dict:
+        r = self.session.post(
+            f"{self.base}/knowledge-base/{kb_id}/documents/upload",
+            files={"file": (filename, content.encode(), "text/plain")},
+            headers={"Authorization": f"Bearer {self.token}"},
+            timeout=self.timeout,
         )
-        resp.raise_for_status()
-        return resp.json()
+        r.raise_for_status()
+        return r.json()
 
-    def process_docs(self, kb_id: int, upload_results: list[dict]) -> list[dict]:
-        resp = self.session.post(
-            self._url(f"/knowledge-base/{kb_id}/documents/process"),
-            json=upload_results,
+    def trigger_processing(self, kb_id: int, doc_ids: list[int]) -> dict:
+        r = self.session.post(
+            f"{self.base}/knowledge-base/{kb_id}/documents/process",
+            json={"document_ids": doc_ids},
+            headers=self._headers(),
+            timeout=self.timeout,
         )
-        resp.raise_for_status()
-        return resp.json()["tasks"]
+        r.raise_for_status()
+        return r.json()
 
     def ingest_status(self, kb_id: int) -> dict:
-        resp = self.session.get(self._url(f"/query/kb/{kb_id}/ingest-status"))
-        resp.raise_for_status()
-        return resp.json()
+        r = self.session.get(
+            f"{self.base}/query/kb/{kb_id}/ingest-status",
+            headers=self._headers(),
+            timeout=self.timeout,
+        )
+        r.raise_for_status()
+        return r.json()
 
-    def wait_for_ingest(self, kb_id: int, timeout: int = 600, poll: int = 5) -> None:
-        """Block until KB is ready or timeout expires."""
-        deadline = time.time() + timeout
-        while time.time() < deadline:
-            status = self.ingest_status(kb_id)
-            log.info(
-                "Ingest status: total=%d completed=%d failed=%d pending=%d ready=%s",
-                status["total"], status["completed"], status["failed"],
-                status["pending"], status["ready"],
-            )
-            if status["ready"]:
-                return
-            if status["failed"] > 0:
-                raise RuntimeError(
-                    f"{status['failed']} document(s) failed to process. "
-                    "Check the RAG app logs."
-                )
-            time.sleep(poll)
-        raise TimeoutError(f"KB {kb_id} did not become ready within {timeout}s")
-
-    def query(self, kb_id: int, question: str, generate_answer: bool = True) -> dict:
-        resp = self.session.post(
-            self._url("/query"),
+    def query(
+        self,
+        question: str,
+        kb_ids: list[int],
+        use_dense: bool = True,
+        use_sparse: bool = True,
+        use_exact: bool = True,
+        use_graph_rag: bool = False,
+        generate_answer: bool = False,
+    ) -> dict:
+        r = self.session.post(
+            f"{self.base}/query",
             json={
-                "question": question,
-                "kb_ids": [kb_id],
+                "question":       question,
+                "kb_ids":         kb_ids,
+                "use_dense":      use_dense,
+                "use_sparse":     use_sparse,
+                "use_exact":      use_exact,
+                "use_graph_rag":  use_graph_rag,
                 "generate_answer": generate_answer,
             },
+            headers=self._headers(),
+            timeout=self.timeout,
         )
-        resp.raise_for_status()
-        return resp.json()
+        r.raise_for_status()
+        return r.json()
+
+    def delete_kb(self, kb_id: int) -> None:
+        self.session.delete(
+            f"{self.base}/knowledge-base/{kb_id}",
+            headers=self._headers(),
+            timeout=self.timeout,
+        )
 
 
-# ── Dataset loading ────────────────────────────────────────────────────────────
+# ── Dataset ────────────────────────────────────────────────────────────────────
 
-def load_squad(dataset_name: str, max_articles: int, max_questions: int) -> tuple[list[dict], list[dict]]:
+def load_squad(n_articles: int, n_questions: int) -> tuple[dict[str, str], list[dict]]:
     """
     Returns:
-        articles  — list of {title, text}
-        questions — list of {id, question, context_title, answers: [str]}
+      articles  — {title: text}
+      questions — [{question, answers, title}]
     """
-    try:
-        from datasets import load_dataset
-    except ImportError:
-        log.error("Run:  pip install datasets")
-        sys.exit(1)
+    from datasets import load_dataset
+    ds = load_dataset("squad_v2", split="validation")
 
-    log.info("Loading %s from HuggingFace (cached after first download)...", dataset_name)
-    ds = load_dataset(dataset_name, split="validation")
-
-    seen_titles: dict[str, str] = {}   # title -> text
-    questions:   list[dict]     = []
+    articles: dict[str, str] = {}
+    questions: list[dict] = []
 
     for row in ds:
         title = row["title"]
-        if title not in seen_titles:
-            if len(seen_titles) >= max_articles:
+        if title not in articles:
+            if len(articles) >= n_articles:
                 continue
-            seen_titles[title] = row["context"]
-
-        if len(questions) >= max_questions:
+            articles[title] = row["context"]
+        if len(questions) < n_questions:
+            answers = row["answers"]["text"]
+            if answers:   # skip unanswerable questions
+                questions.append({
+                    "question": row["question"],
+                    "answers":  answers,
+                    "title":    title,
+                })
+        if len(articles) >= n_articles and len(questions) >= n_questions:
             break
 
-        # squad_v2 has unanswerable questions (answers.text == []) — skip them
-        ans_texts = row["answers"]["text"]
-        if not ans_texts:
-            continue
-
-        questions.append({
-            "id":            row["id"],
-            "question":      row["question"],
-            "context_title": title,
-            "answers":       ans_texts,
-        })
-
-    articles = [{"title": t, "text": c} for t, c in seen_titles.items()]
-    log.info("Loaded %d articles, %d questions", len(articles), len(questions))
     return articles, questions
 
 
-# ── Scoring ────────────────────────────────────────────────────────────────────
+# ── Ingest ─────────────────────────────────────────────────────────────────────
 
-def _normalize(text: str) -> str:
-    text = text.lower()
-    text = re.sub(r"\b(a|an|the)\b", " ", text)
-    text = re.sub(r"[^a-z0-9 ]", "", text)
-    return " ".join(text.split())
+def ingest_articles(
+    client: RAGClient,
+    kb_id: int,
+    articles: dict[str, str],
+    poll_interval: int = 5,
+    timeout: int = 300,
+) -> None:
+    doc_ids = []
+    print(f"  Uploading {len(articles)} articles...")
+    for title, text in tqdm(articles.items(), desc="  upload"):
+        resp = client.upload_text(kb_id, f"{title}.txt", text)
+        doc_ids.append(resp["id"])
+
+    print(f"  Triggering processing for {len(doc_ids)} documents...")
+    client.trigger_processing(kb_id, doc_ids)
+
+    print("  Waiting for ingest to complete...")
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        status = client.ingest_status(kb_id)
+        print(f"    {status['completed']}/{status['total']} done, {status['failed']} failed", end="\r")
+        if status["ready"]:
+            print(f"\n  Ingest complete: {status['completed']} chunks indexed.")
+            return
+        if status["failed"] > 0:
+            print(f"\n  Warning: {status['failed']} documents failed processing.")
+            return
+        time.sleep(poll_interval)
+    raise TimeoutError(f"Ingest did not complete within {timeout}s")
 
 
-def token_f1(prediction: str, references: list[str]) -> float:
-    """Max token-F1 over all reference answers (SQuAD official metric)."""
-    pred_tokens = Counter(_normalize(prediction).split())
-    best = 0.0
-    for ref in references:
-        ref_tokens = Counter(_normalize(ref).split())
-        common = sum((pred_tokens & ref_tokens).values())
-        if common == 0:
+# ── Evaluation loop ────────────────────────────────────────────────────────────
+
+def run_config(
+    client: RAGClient,
+    config: dict,
+    questions: list[dict],
+    kb_id: int,
+    generate_answers: bool,
+) -> dict:
+    results = []
+    latencies = []
+
+    for q in tqdm(questions, desc=f"  {config['name']:<16}", leave=False):
+        try:
+            resp = client.query(
+                question=q["question"],
+                kb_ids=[kb_id],
+                use_dense=config["use_dense"],
+                use_sparse=config["use_sparse"],
+                use_exact=config["use_exact"],
+                use_graph_rag=config["use_graph_rag"],
+                generate_answer=generate_answers,
+            )
+        except Exception as e:
+            results.append({"error": str(e), "f1": 0.0, "em": 0.0, "hit": 0.0})
             continue
-        p = common / sum(pred_tokens.values())
-        r = common / sum(ref_tokens.values())
-        best = max(best, 2 * p * r / (p + r))
-    return best
+
+        answer     = resp.get("answer") or ""
+        contexts   = resp.get("contexts", [])
+        confidence = resp.get("confidence", "none")
+        latency_ms = resp.get("latency_ms", 0)
+        legs       = resp.get("retrieval_info", {}).get("legs", {})
+
+        f1  = token_f1(answer, q["answers"])    if answer else 0.0
+        em  = exact_match(answer, q["answers"]) if answer else 0.0
+        hit = retrieval_hit(contexts, q["answers"])
+
+        latencies.append(latency_ms)
+        results.append({
+            "question":   q["question"],
+            "answers":    q["answers"],
+            "prediction": answer,
+            "f1":         round(f1,  4),
+            "em":         round(em,  4),
+            "hit":        round(hit, 4),
+            "confidence": confidence,
+            "latency_ms": latency_ms,
+            "legs":       legs,
+        })
+
+    n = len(results)
+    errors = sum(1 for r in results if "error" in r)
+    return {
+        "config":      config,
+        "n_questions": n,
+        "errors":      errors,
+        "mean_f1":     round(sum(r["f1"]  for r in results) / n, 4) if n else 0,
+        "mean_em":     round(sum(r["em"]  for r in results) / n, 4) if n else 0,
+        "hit_rate":    round(sum(r["hit"] for r in results) / n, 4) if n else 0,
+        "mean_latency_ms": round(sum(latencies) / len(latencies), 1) if latencies else 0,
+        "details":     results,
+    }
 
 
-def exact_match(prediction: str, references: list[str]) -> bool:
-    norm_pred = _normalize(prediction)
-    return any(_normalize(ref) == norm_pred for ref in references)
+# ── Summary table ──────────────────────────────────────────────────────────────
+
+def print_comparison_table(run_results: list[dict]) -> None:
+    header = f"{'Config':<22} {'Label':<42} {'F1':>6} {'EM':>6} {'Hit%':>6} {'ms':>6}"
+    print("\n" + "=" * len(header))
+    print(header)
+    print("-" * len(header))
+    for r in run_results:
+        cfg = r["config"]
+        print(
+            f"{cfg['name']:<22} {cfg['label']:<42} "
+            f"{r['mean_f1']:>6.3f} {r['mean_em']:>6.3f} "
+            f"{r['hit_rate']:>6.3f} {r['mean_latency_ms']:>6.0f}"
+        )
+    print("=" * len(header))
+    print()
+    # Best config per metric
+    best_f1  = max(run_results, key=lambda x: x["mean_f1"])
+    best_hit = max(run_results, key=lambda x: x["hit_rate"])
+    best_lat = min(run_results, key=lambda x: x["mean_latency_ms"])
+    print(f"Best F1:      {best_f1['config']['name']}  ({best_f1['mean_f1']:.3f})")
+    print(f"Best hit rate:{best_hit['config']['name']}  ({best_hit['hit_rate']:.3f})")
+    print(f"Fastest:      {best_lat['config']['name']}  ({best_lat['mean_latency_ms']:.0f} ms)")
+    print()
 
 
-# ── Result types ───────────────────────────────────────────────────────────────
-
-@dataclass
-class QuestionResult:
-    question_id:   str
-    question:      str
-    ground_truth:  list[str]
-    answer:        Optional[str]
-    confidence:    str
-    suggestion:    Optional[str]
-    token_f1:      float
-    exact_match:   bool
-    num_contexts:  int
-    latency_ms:    int
-    failed_legs:   list[str]
-    error:         Optional[str] = None
-
-
-@dataclass
-class EvalReport:
-    dataset:       str
-    timestamp:     str
-    rag_base_url:  str
-    num_articles:  int
-    num_questions: int
-    mean_f1:       float
-    exact_match_pct: float
-    confidence_dist: dict
-    avg_latency_ms:  float
-    avg_contexts:    float
-    questions:     list[dict] = field(default_factory=list)
-
-
-# ── Main ───────────────────────────────────────────────────────────────────────
+# ── CLI ────────────────────────────────────────────────────────────────────────
 
 def main() -> None:
-    args = parse_args()
+    parser = argparse.ArgumentParser(description="RAG evaluation harness")
+    parser.add_argument("--base-url",  default=os.getenv("BASE_URL",  "http://localhost:8000/api"))
+    parser.add_argument("--username",  default=os.getenv("USERNAME",  "eval_user"))
+    parser.add_argument("--password",  default=os.getenv("PASSWORD",  "eval_pass"))
+    parser.add_argument("--email",     default=os.getenv("EMAIL",     "eval@example.com"))
+    parser.add_argument("--articles",  type=int, default=20,  help="Number of SQuAD articles to ingest")
+    parser.add_argument("--questions", type=int, default=60,  help="Number of questions to evaluate")
+
+    # ── Leg flags — run a single specific combination ───────────────────────
+    # If none of these are passed, the harness runs ALL configs (benchmark sweep).
+    # If any are passed, only the specified combination runs.
+    parser.add_argument("--use-dense",  action="store_true", default=None,
+                        help="Enable dense vector retrieval leg")
+    parser.add_argument("--use-sparse", action="store_true", default=None,
+                        help="Enable sparse vector (SPLADE) retrieval leg")
+    parser.add_argument("--use-kg",     action="store_true", default=None,
+                        help="Enable knowledge graph (Neo4j GraphRAG) retrieval leg")
+    # Keyword search is always on — cannot be disabled (matches app behaviour).
+
+    parser.add_argument("--graph",     action="store_true",
+                        help="Include all_3+graph config in sweep (requires Neo4j). "
+                             "Implied when --use-kg is passed.")
+    parser.add_argument("--generate-answers", action="store_true", help="Run LLM answer generation (slower)")
+    parser.add_argument("--output",    default="eval_results.json")
+    parser.add_argument("--keep-kb",   action="store_true",   help="Don't delete the KB after eval")
+    parser.add_argument("--kb-id",     type=int, default=None, help="Reuse existing KB (skip ingest)")
+    args = parser.parse_args()
 
     client = RAGClient(args.base_url)
 
-    # Register eval user (no-op if already exists), then login
-    eval_email = f"{args.username}@eval.local"
-    client.register(args.username, args.password, eval_email)
+    # ── Auth ───────────────────────────────────────────────────────────────────
+    print("Authenticating...")
+    client.register(args.username, args.password, args.email)
     client.login(args.username, args.password)
+    print(f"  Logged in as {args.username}")
 
-    # Load dataset
-    articles, questions = load_squad(args.dataset, args.articles, args.questions)
+    # ── Dataset ────────────────────────────────────────────────────────────────
+    print(f"Loading SQuAD 2.0 ({args.articles} articles, {args.questions} questions)...")
+    articles, questions = load_squad(args.articles, args.questions)
+    print(f"  Loaded {len(articles)} articles, {len(questions)} questions")
 
-    # Create a fresh KB for this eval run
-    run_id = datetime.now().strftime("%Y%m%d_%H%M%S")
-    kb_id  = client.create_kb(
-        name=f"eval_{args.dataset}_{run_id}",
-        description=f"Auto-created by eval harness — {args.dataset}",
-    )
+    # ── Ingest (or reuse) ──────────────────────────────────────────────────────
+    kb_id = args.kb_id
+    if kb_id is None:
+        ts = int(time.time())
+        print("Creating knowledge base...")
+        kb_id = client.create_kb(f"eval-squad-{ts}", "SQuAD 2.0 evaluation KB")
+        print(f"  KB id={kb_id}")
+        ingest_articles(client, kb_id, articles)
+    else:
+        print(f"Reusing existing KB id={kb_id}")
 
-    try:
-        # ── Ingest articles ────────────────────────────────────────────────────
-        log.info("Uploading %d articles...", len(articles))
-        all_uploads: list[dict] = []
-        for article in tqdm(articles, desc="Uploading"):
-            # Each article becomes a single .txt file named after its title
-            safe_name = re.sub(r"[^a-zA-Z0-9_-]", "_", article["title"])[:60]
-            filename  = f"{safe_name}.txt"
-            uploads   = client.upload_text(kb_id, filename, article["text"])
-            all_uploads.extend(u for u in uploads if not u.get("skip_processing"))
+    # ── Determine configs to run ───────────────────────────────────────────────
+    # Any leg flag passed → run exactly that one combination.
+    # No leg flags passed → full benchmark sweep across all predefined configs.
+    single_mode = any(v is True for v in [args.use_dense, args.use_sparse, args.use_kg])
 
-        if not all_uploads:
-            log.warning("All files already existed in the KB — skipping process step")
-        else:
-            log.info("Triggering processing for %d uploads...", len(all_uploads))
-            client.process_docs(kb_id, all_uploads)
+    if single_mode:
+        use_dense  = bool(args.use_dense)
+        use_sparse = bool(args.use_sparse)
+        use_kg     = bool(args.use_kg)
+        parts = ["exact"]   # always on
+        if use_dense:  parts.append("dense")
+        if use_sparse: parts.append("sparse")
+        if use_kg:     parts.append("graph")
+        name  = "+".join(parts)
+        label = "Custom: " + ", ".join(p.capitalize() for p in parts)
+        configs = [{
+            "name":          name,
+            "label":         label,
+            "use_exact":     True,
+            "use_dense":     use_dense,
+            "use_sparse":    use_sparse,
+            "use_graph_rag": use_kg,
+        }]
+        print(f"Single-config mode: {name}")
+    else:
+        include_graph = args.graph
+        configs = [c for c in RETRIEVAL_CONFIGS if not c.get("graph_only") or include_graph]
+        print(f"Sweep mode: running {len(configs)} configs"
+              + (" (including graph)" if include_graph else " (use --graph to include KG config)"))
 
-        log.info("Waiting for ingest to complete...")
-        client.wait_for_ingest(kb_id, timeout=600, poll=8)
-
-        # ── Run evaluation queries ─────────────────────────────────────────────
-        results: list[QuestionResult] = []
-
-        for q in tqdm(questions, desc="Evaluating"):
-            try:
-                resp = client.query(kb_id, q["question"], generate_answer=True)
-                answer       = resp.get("answer") or ""
-                confidence   = resp.get("confidence", "none")
-                suggestion   = resp.get("suggestion")
-                latency_ms   = resp.get("latency_ms", 0)
-                contexts     = resp.get("contexts", [])
-                failed_legs  = resp.get("retrieval_info", {}).get("failed_legs", [])
-
-                f1  = token_f1(answer, q["answers"])
-                em  = exact_match(answer, q["answers"])
-
-                results.append(QuestionResult(
-                    question_id  = q["id"],
-                    question     = q["question"],
-                    ground_truth = q["answers"],
-                    answer       = answer,
-                    confidence   = confidence,
-                    suggestion   = suggestion,
-                    token_f1     = round(f1, 4),
-                    exact_match  = em,
-                    num_contexts = len(contexts),
-                    latency_ms   = latency_ms,
-                    failed_legs  = failed_legs,
-                ))
-            except Exception as exc:
-                log.warning("Question %s failed: %s", q["id"], exc)
-                results.append(QuestionResult(
-                    question_id  = q["id"],
-                    question     = q["question"],
-                    ground_truth = q["answers"],
-                    answer       = None,
-                    confidence   = "none",
-                    suggestion   = None,
-                    token_f1     = 0.0,
-                    exact_match  = False,
-                    num_contexts = 0,
-                    latency_ms   = 0,
-                    failed_legs  = [],
-                    error        = str(exc),
-                ))
-
-        # ── Compile report ─────────────────────────────────────────────────────
-        ok = [r for r in results if r.error is None]
-        conf_dist: dict[str, int] = {}
-        for r in ok:
-            conf_dist[r.confidence] = conf_dist.get(r.confidence, 0) + 1
-
-        report = EvalReport(
-            dataset          = args.dataset,
-            timestamp        = run_id,
-            rag_base_url     = args.base_url,
-            num_articles     = len(articles),
-            num_questions    = len(results),
-            mean_f1          = round(sum(r.token_f1 for r in ok) / max(len(ok), 1), 4),
-            exact_match_pct  = round(100 * sum(r.exact_match for r in ok) / max(len(ok), 1), 2),
-            confidence_dist  = conf_dist,
-            avg_latency_ms   = round(sum(r.latency_ms for r in ok) / max(len(ok), 1), 1),
-            avg_contexts     = round(sum(r.num_contexts for r in ok) / max(len(ok), 1), 2),
-            questions        = [asdict(r) for r in results],
+    # ── Eval loop ──────────────────────────────────────────────────────────────
+    run_results = []
+    for cfg in configs:
+        print(f"\nRunning config: {cfg['name']} — {cfg['label']}")
+        result = run_config(client, cfg, questions, kb_id, args.generate_answers)
+        run_results.append(result)
+        print(
+            f"  F1={result['mean_f1']:.3f}  EM={result['mean_em']:.3f}  "
+            f"Hit={result['hit_rate']:.3f}  {result['mean_latency_ms']:.0f}ms avg"
         )
 
-        # Write results
-        out = Path(args.output)
-        out.write_text(json.dumps(asdict(report), indent=2))
+    # ── Results ────────────────────────────────────────────────────────────────
+    print_comparison_table(run_results)
 
-        # Print summary
-        print("\n" + "=" * 60)
-        print(f"  Dataset        : {report.dataset}")
-        print(f"  Articles       : {report.num_articles}")
-        print(f"  Questions      : {report.num_questions}  (errors: {len(results) - len(ok)})")
-        print(f"  Mean token-F1  : {report.mean_f1:.4f}")
-        print(f"  Exact match    : {report.exact_match_pct:.1f}%")
-        print(f"  Avg latency    : {report.avg_latency_ms:.0f} ms")
-        print(f"  Avg contexts   : {report.avg_contexts:.1f}")
-        print(f"  Confidence     : {report.confidence_dist}")
-        print(f"  Output         : {out.resolve()}")
-        print("=" * 60)
+    output = {
+        "timestamp":      time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "kb_id":          kb_id,
+        "n_articles":     len(articles),
+        "n_questions":    len(questions),
+        "generate_answers": args.generate_answers,
+        "configs_run":    [r["config"]["name"] for r in run_results],
+        "summary": [
+            {
+                "config":       r["config"]["name"],
+                "label":        r["config"]["label"],
+                "mean_f1":      r["mean_f1"],
+                "mean_em":      r["mean_em"],
+                "hit_rate":     r["hit_rate"],
+                "mean_latency_ms": r["mean_latency_ms"],
+                "errors":       r["errors"],
+            }
+            for r in run_results
+        ],
+        "details": {r["config"]["name"]: r["details"] for r in run_results},
+    }
 
-    finally:
-        if not args.no_cleanup:
-            try:
-                client.delete_kb(kb_id)
-            except Exception as exc:
-                log.warning("KB cleanup failed: %s", exc)
+    with open(args.output, "w") as f:
+        json.dump(output, f, indent=2)
+    print(f"Results written to {args.output}")
+
+    # ── Cleanup ────────────────────────────────────────────────────────────────
+    if not args.keep_kb and args.kb_id is None:
+        print(f"Deleting KB {kb_id}...")
+        client.delete_kb(kb_id)
 
 
 if __name__ == "__main__":
