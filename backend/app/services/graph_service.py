@@ -165,18 +165,24 @@ def graph_search(
     retrieval_query = f"""
     WITH node AS chunk
     OPTIONAL MATCH (chunk)<-[:FROM_CHUNK]-(entity)
-    OPTIONAL MATCH (entity)-[rel_path*1..{hops}]-(neighbor)
-    WHERE all(r IN rel_path WHERE type(r) <> 'FROM_CHUNK')
-    WITH chunk, [rp IN collect(rel_path) WHERE rp IS NOT NULL | rp] AS paths
-    WITH chunk, reduce(acc=[], p IN paths | acc + p) AS flat_rels
-    WITH chunk, [r IN flat_rels WHERE r IS NOT NULL] AS rels
+    OPTIONAL MATCH (entity)-[r]-(neighbor)
+    WHERE type(r) <> 'FROM_CHUNK'
+      AND type(r) <> 'FROM_DOCUMENT'
+      AND type(r) <> 'NEXT_CHUNK'
+    WITH chunk,
+         entity,
+         r,
+         neighbor,
+         coalesce(entity.name, entity.title, entity.id) AS ename,
+         coalesce(neighbor.name, neighbor.title, neighbor.id) AS nname
+    WHERE ename IS NOT NULL AND nname IS NOT NULL
+    WITH chunk, collect(DISTINCT [ename, type(r), nname]) AS triples
+    WITH chunk, triples[..40] AS triples
     RETURN chunk.text +
-      CASE WHEN size(rels) > 0
+      CASE WHEN size(triples) > 0
         THEN '\\n\\n[Graph context]\\n' +
-             reduce(s='', r IN rels |
-               s + coalesce(startNode(r).name, '') +
-               ' -[' + type(r) + ']-> ' +
-               coalesce(endNode(r).name, '') + '\\n'
+             reduce(s='', t IN triples |
+               s + t[0] + ' -[' + t[1] + ']-> ' + t[2] + '\\n'
              )
         ELSE ''
       END AS info

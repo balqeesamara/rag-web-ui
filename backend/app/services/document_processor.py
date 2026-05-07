@@ -127,6 +127,17 @@ def _get_markitdown() -> MarkItDown:
                 enable_plugins=True,
                 llm_client=vision_client,
                 llm_model=vision_model,
+                llm_prompt=(
+                    "Extract all text from this image into clean, naturally flowing paragraphs, "
+                    "while preserving document structure and any table or sub-element layout.\n\n"
+                    "Rules:\n"
+                    "- Remove unnatural line breaks within sentences\n"
+                    "- Join split words and sentences caused by column layout or line wrapping\n"
+                    "- Keep proper paragraph breaks where the topic clearly changes\n"
+                    "- Preserve tables using Markdown table syntax\n"
+                    "- Preserve all original meaning and technical terms exactly\n"
+                    "- Output only the extracted text, no explanations or commentary"
+                ),
             )
             logging.getLogger(__name__).info(
                 "[markitdown] OCR enabled — vision_model=%s base=%s",
