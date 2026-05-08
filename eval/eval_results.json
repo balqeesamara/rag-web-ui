@@ -1,8 +1,8 @@
 {
-  "timestamp": "2026-05-08T14:37:26Z",
+  "timestamp": "2026-05-08T14:49:28Z",
   "kb_id": 1,
   "n_questions": 20,
-  "generate_answers": false,
+  "generate_answers": true,
   "configs_run": [
     "exact_only",
     "dense_only",
@@ -16,64 +16,64 @@
     {
       "config": "exact_only",
       "label": "Keyword only (baseline)",
-      "mean_f1": 0.0076,
+      "mean_f1": 0.0915,
       "mean_em": 0.0,
       "hit_rate": 0.95,
-      "mean_latency_ms": 447.1,
+      "mean_latency_ms": 5359.1,
       "errors": 0
     },
     {
       "config": "dense_only",
       "label": "Dense vectors only",
-      "mean_f1": 0.0073,
+      "mean_f1": 0.0933,
       "mean_em": 0.0,
       "hit_rate": 1.0,
-      "mean_latency_ms": 498.9,
+      "mean_latency_ms": 3673.3,
       "errors": 0
     },
     {
       "config": "sparse_only",
       "label": "Sparse vectors only (SPLADE)",
-      "mean_f1": 0.006,
+      "mean_f1": 0.0844,
       "mean_em": 0.0,
       "hit_rate": 0.75,
-      "mean_latency_ms": 489.1,
+      "mean_latency_ms": 3281.8,
       "errors": 0
     },
     {
       "config": "dense+sparse",
       "label": "Dense + Sparse (no keyword)",
-      "mean_f1": 0.0063,
+      "mean_f1": 0.0877,
       "mean_em": 0.0,
       "hit_rate": 0.95,
-      "mean_latency_ms": 513.2,
+      "mean_latency_ms": 3353.8,
       "errors": 0
     },
     {
       "config": "dense+exact",
       "label": "Dense + Keyword",
-      "mean_f1": 0.0072,
+      "mean_f1": 0.096,
       "mean_em": 0.0,
       "hit_rate": 0.95,
-      "mean_latency_ms": 527.9,
+      "mean_latency_ms": 3205.2,
       "errors": 0
     },
     {
       "config": "sparse+exact",
       "label": "Sparse + Keyword",
-      "mean_f1": 0.0065,
+      "mean_f1": 0.0879,
       "mean_em": 0.0,
       "hit_rate": 0.9,
-      "mean_latency_ms": 430.1,
+      "mean_latency_ms": 3324.9,
       "errors": 0
     },
     {
       "config": "all_3",
       "label": "Full hybrid (dense + sparse + keyword)",
-      "mean_f1": 0.0063,
+      "mean_f1": 0.0853,
       "mean_em": 0.0,
       "hit_rate": 0.95,
-      "mean_latency_ms": 536.8,
+      "mean_latency_ms": 3358.7,
       "errors": 0
     }
   ],
@@ -87,12 +87,12 @@
           "France",
           "France"
         ],
-        "prediction": "",
-        "f1": 0.0014,
+        "prediction": "Based on the provided context, Normandy is located in **France**.\n\nThe text states that the Duchy of Normandy was established within the \"former Frankish kingdom of Neustria\" and situated between the river Epte and the Atlantic coast [1]. It further notes that Norman customary law survives today through legal systems in Jersey and Guernsey, which are described as being in the Channel Islands (implying they are part of or associated with France) [3]. Additionally, it mentions that Normandy adopted feudal doctrines from \"the rest of France\" [6] and that the Duchy was a great fief of medieval **France** [5].",
+        "f1": 0.02,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 898,
+        "latency_ms": 5982,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -124,12 +124,12 @@
           "10th and 11th centuries",
           "10th and 11th centuries"
         ],
-        "prediction": "",
-        "f1": 0.0049,
+        "prediction": "Based on the provided context, the Normans were present in the region of Normandy starting from **911**, when the Duchy of Normandy was established by the Treaty of Saint-Clair-sur-Epte between King Charles III of West Francia and the Viking ruler Rollo. This treaty granted them lands between the river Epte and the Atlantic coast in exchange for their protection against further Viking incursions [4].\n\nThe text also notes that by **1066**, Normandy had been exporting fighting horsemen (Norman knights) for more than a generation, indicating they were well-established there prior to the Norman Conquest of England [3]. Additionally, it mentions that under Richard I of Normandy, the Duchy was forged into a cohesive principality in feudal tenure [5].\n\n**Answer:** The Normans established their presence in Normandy beginning in **911**, when the Duchy was founded by Rollo. They remained there as a distinct duchy and military power for centuries, exporting knights from the region well before 1066 [3], [4], [5].",
+        "f1": 0.0485,
         "em": 0.0,
         "hit": 0.0,
         "confidence": "very_high",
-        "latency_ms": 413,
+        "latency_ms": 8469,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -161,12 +161,12 @@
           "Denmark, Iceland and Norway",
           "Denmark, Iceland and Norway"
         ],
-        "prediction": "",
-        "f1": 0.0159,
+        "prediction": "Based on the provided text, the Norse originated from **Denmark**, **Iceland**, and **Norway**. The text also mentions \"Norse\u2013Gaels\" and \"Anglo-Danes,\" but explicitly identifies Denmark, Iceland, and Norway as the primary sources for the raiders and pirates who gave their name to Normandy [1].",
+        "f1": 0.1702,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 379,
+        "latency_ms": 3316,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -198,12 +198,12 @@
           "Rollo",
           "Rollo"
         ],
-        "prediction": "",
-        "f1": 0.0063,
+        "prediction": "Based on the provided context, the Norse leader was **Rollo**. He led the Viking raiders and pirates who agreed to swear fealty to King Charles III of West Francia in exchange for establishing the Duchy of Normandy [1][2].",
+        "f1": 0.0513,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "medium",
-        "latency_ms": 421,
+        "latency_ms": 2274,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -235,12 +235,12 @@
           "10th",
           "10th"
         ],
-        "prediction": "",
-        "f1": 0.0116,
+        "prediction": "Based on the provided text, the distinct cultural and ethnic identity of the Normans emerged initially in the **first half of the 10th century**.\n\nSource [1] states: \"The distinct cultural and ethnic identity of the Normans emerged initially in the first half of the 10th century...\"",
+        "f1": 0.2642,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 394,
+        "latency_ms": 3573,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -271,12 +271,12 @@
           "William the Conqueror",
           "William the Conqueror"
         ],
-        "prediction": "",
-        "f1": 0.0142,
+        "prediction": "Based on the provided context, **William II** (also referred to as **Duke William**) of Normandy was the leader who conquered England at the Battle of Hastings in 1066. The text states that he killed King Harold II during this battle [1]. Additionally, the second source mentions an expedition led by \"their duke, William the Conqueror,\" which resulted in the Norman conquest of England at the same event [2].\n\n*Note: While historical records typically identify him as William I (William the Conqueror), the provided text refers to him as Duke William II.*",
+        "f1": 0.0638,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 448,
+        "latency_ms": 5034,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -307,12 +307,12 @@
           "Richard I",
           "Richard I"
         ],
-        "prediction": "",
-        "f1": 0.0022,
+        "prediction": "Based on the provided context, the Duchy of Normandy was established in 911 as a fiefdom through the Treaty of Saint-Clair-sur-Epte between King Charles III of West Francia and the Viking ruler **Rollo** [1]. While Rollo founded the duchy, the text does not list every subsequent duke. However, it specifically names:\n\n*   **William II (William the Conqueror)**: Who conquered England in 1066 as Duke of Normandy [3].\n*   **Richard I**: Under whose rule the Duchy was forged into a cohesive and formidable principality [4].\n*   **Richard II**: Whose sister, Emma, married King Ethelred II of England [5].\n\nThe text also notes that early Norman kings of England (who were Dukes of Normandy) owed homage to the King of France for their continental lands [3], and later Norman adventurers served under princes like Bohemond I in other regions [4], but these are not explicitly identified as ruling the Duchy itself in the provided snippets.",
+        "f1": 0.0263,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 413,
+        "latency_ms": 9324,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -343,12 +343,12 @@
           "Catholic orthodoxy",
           "Catholic"
         ],
-        "prediction": "",
-        "f1": 0.0012,
+        "prediction": "Based on the provided context, the Normans were **Catholic Christians**.\n\nThe text supports this conclusion through several points:\n*   They participated in religious wars and the Crusades as \"major foreign participants\" [2].\n*   They acted under the consent of popes (e.g., Pope Gregory VII) and served as vassals to the Catholic Church [8].\n*   They were described as \"avid Crusaders\" who fought alongside other Christian forces in Asia Minor, Antioch, Jerusalem, and Transjordan [2], [3].\n*   The text notes that after their invasion of Ireland, they built castles and settlements while maintaining a distinct culture before eventually merging with the native Irish culture [4].\n\nWhile the text mentions that French Revolutionaries later destroyed \"religious objects\" and caused an \"assault on religion,\" this refers to events in the 18th century long after the Normans had established their rule; it does not indicate that the Normans themselves were non-religious or of a different faith.",
+        "f1": 0.0134,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 455,
+        "latency_ms": 8998,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -379,12 +379,12 @@
           "Norseman, Viking",
           "Norseman, Viking"
         ],
-        "prediction": "",
-        "f1": 0.0013,
+        "prediction": "Based on the provided context, the word **Norman** (also spelled Normaund) originally referred to a dialect derived from the **Gallo-Romance language** spoken by the Frankish land that the settlers occupied.\n\nThe text states: \"They adopted the Gallo-Romance language of the Frankish land they settled, their dialect becoming known as Norman, Normaund or Norman French\" [2]. It further notes that names beginning with **Fitz** (from the Norman for \"son\") indicate Norman ancestry, implying the term was used to identify people from this specific region and linguistic group.",
+        "f1": 0.0,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 453,
+        "latency_ms": 5864,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -415,12 +415,12 @@
           "9th century",
           "9th century"
         ],
-        "prediction": "",
-        "f1": 0.0032,
+        "prediction": "Based on the provided text, the Latinized versions of the word \"Norman\" (such as *Nortmannus*, *Normannus*, or *Nordmannus*) were **recorded in Medieval Latin during the 9th century**.\n\nSource: [1]",
+        "f1": 0.129,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 417,
+        "latency_ms": 3452,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -451,12 +451,12 @@
           "911",
           "911"
         ],
-        "prediction": "",
-        "f1": 0.0013,
+        "prediction": "The Duchy of Normandy was established in **911** through the Treaty of Saint-Clair-sur-Epte between King Charles III of West Francia and the Viking ruler Rollo [1].",
+        "f1": 0.0741,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 379,
+        "latency_ms": 3092,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -487,12 +487,12 @@
           "King Charles III",
           "King Charles III"
         ],
-        "prediction": "",
-        "f1": 0.0155,
+        "prediction": "Rollo signed the Treaty of Saint-Clair-sur-Epte with **King Charles III of West Francia** (also known as Charles the Simple). The source text states that the Duchy of Normandy was established by this treaty between \"King Charles III of West Francia and the famed Viking ruler Rollo\" [1].",
+        "f1": 0.12,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 439,
+        "latency_ms": 3241,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -523,12 +523,12 @@
           "Epte",
           "Seine"
         ],
-        "prediction": "",
-        "f1": 0.0099,
+        "prediction": "Based on the provided text, the Duchy of Normandy was originally established by the treaty of Saint-Clair-sur-Epte between King Charles III and Rollo. The territory offered to them lay **between the river Epte** and the Atlantic coast [1]. Therefore, the river that originally bounded the duchy (on its eastern side) is the **Epte**.",
+        "f1": 0.037,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "low",
-        "latency_ms": 450,
+        "latency_ms": 3297,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -559,12 +559,12 @@
           "Rollo",
           "Rollo"
         ],
-        "prediction": "",
-        "f1": 0.0039,
+        "prediction": "Based on the provided text, **Rollo** is identified as the leader under whom the Viking contingents arrived in Normandy and settled there [1]. The text states that \"Rollo's contingents who raided and ultimately settled Normandy... included Danes, Norwegians, Norse\u2013Gaels, Orkney Vikings...\" and implies his leadership role by referring to them collectively as \"**Rollo's** Vikings\" [1] and noting they agreed to swear fealty under him [3]. While the text does not explicitly state that Rollo \"gave\" them a common identity in a single moment, it is the only figure mentioned who unified these diverse groups (Danes, Norwegians, etc.) into a single settlement entity (\"Rollo's Vikings\") before they began their assimilation process.\n\nAnswer: **Rollo** [1], [3].",
+        "f1": 0.0174,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 469,
+        "latency_ms": 7069,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -595,12 +595,12 @@
           "Catholicism",
           "Catholicism"
         ],
-        "prediction": "",
-        "f1": 0.0011,
+        "prediction": "Based on the provided text, the Normans adopted **Catholicism (Christianity)** as their religion.\n\nKey points from the context include:\n*   They replaced Norse paganism with Catholic Christianity [9].\n*   They became \"exponents of the Catholic orthodoxy into which they assimilated\" and were noted for their \"Christian piety\" [1].\n*   Their religious zeal was significant enough that it led to major foreign participation in the Reconquista in Iberia and religious wars before the First Crusade [3].\n*   The French Revolution later caused the destruction of many Norman religious objects due to an assault on religion [2].",
+        "f1": 0.0217,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 392,
+        "latency_ms": 6336,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -631,12 +631,12 @@
           "the north",
           "north"
         ],
-        "prediction": "",
-        "f1": 0.001,
+        "prediction": "Based on the provided text, the Duchy of Normandy was situated in the former Frankish kingdom of **Neustria**. Specifically, it occupied the area between the river Epte and the Atlantic coast. This territory corresponded to the northern part of present-day **Upper Normandy** down to the river Seine [1].",
+        "f1": 0.04,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 446,
+        "latency_ms": 4193,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -667,12 +667,12 @@
           "fighting horsemen",
           "fighting horsemen"
         ],
-        "prediction": "",
-        "f1": 0.0024,
+        "prediction": "Based on the provided text, one of the Normans' major exports was **fighting horsemen** (or fighting men/military mercenaries).\n\nThe text states that \"by 1066 Normandy had been exporting fighting horsemen for more than a generation\" [2]. Additionally, they are described as having a \"significant military accomplishments and innovations\" and being famed for their \"martial spirit,\" which led to them serving in various capacities from the Byzantine Empire and Armenia to the Crusader states and England [1], [2].",
+        "f1": 0.0506,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 447,
+        "latency_ms": 5663,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -703,12 +703,12 @@
           "the Pechenegs, the Bulgars, and especially the Seljuk Turks",
           "the Seljuk Turks"
         ],
-        "prediction": "",
-        "f1": 0.0133,
+        "prediction": "Based on the provided text, the Normans did not have a single \"main\" enemy that applied uniformly to both Italy and Armenia; rather, their enemies varied by region and specific campaign. However, the text identifies several key adversaries:\n\n*   **In Southern Italy:** The primary adversary was the **Byzantine Empire**. The text states that Robert Guiscard drove the Byzantines out of southern Italy [1]. Later, in 1085, the Normans lost Dyrrachium (in the Balkan region adjacent to Italy) after the death of Robert, and in 1107, Bohemond's campaign was forced to retreat due to \"Byzantine resistance\" [5].\n*   **In Armenia:** The text indicates that Norman mercenaries fought against the **Pechenegs**, the **Bulgars**, and especially the **Seljuk Turks** while serving in various regions including Armenia [3]. Specifically regarding Armenia, Normans served under Armenian generals (such as Philaretus Brachamius) to aid in the destruction of **Armenian vassal-states** like Sassoun and Taron, which were being destroyed by Turkish forces [2].\n*   **General Context:** The text notes that Norman mercenaries were first encouraged to come south by the **Lombards** to act against the Byzantines [3], implying a rivalry between Lombard interests and Byzantine authority in Italy.\n\nTherefore:\n*   In **Italy**, the main enemy was the **Byzantine Empire**.\n*   In **Armenia**, the Normans fought alongside Armenians against external threats like the **Seljuk Turks** (who destroyed Armenian vassal-states) and internal rivals, though they also served under Armenian generals.",
+        "f1": 0.0766,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 431,
+        "latency_ms": 14263,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -739,12 +739,12 @@
           "in the 1050s",
           "in the 1050s"
         ],
-        "prediction": "",
-        "f1": 0.0275,
+        "prediction": "Based on the provided text, Herv\u00e9 served as a Byzantine general in the **1050s**. [1]",
+        "f1": 0.3333,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 405,
+        "latency_ms": 1754,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -775,12 +775,12 @@
           "In the 1060s",
           "In the 1060s"
         ],
-        "prediction": "",
-        "f1": 0.0132,
+        "prediction": "Based on the provided text, Robert Crispin led the Normans of Edessa against the Turks in the **1060s**. [1]",
+        "f1": 0.2727,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 393,
+        "latency_ms": 1989,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -814,12 +814,12 @@
           "France",
           "France"
         ],
-        "prediction": "",
-        "f1": 0.0019,
+        "prediction": "Based on the provided context, Normandy is located in **France**.\n\nThe text states that Normandy is \"a region in France\" [2] and describes it as a fiefdom established by King Charles III of West Francia (the French kingdom) [1]. Additionally, it mentions that the descendants of Norse settlers merged with the native Frankish populations to create a unique culture in north France [4].",
+        "f1": 0.0312,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 524,
+        "latency_ms": 4346,
         "legs": {
           "dense": {
             "status": "ok",
@@ -851,12 +851,12 @@
           "10th and 11th centuries",
           "10th and 11th centuries"
         ],
-        "prediction": "",
-        "f1": 0.0061,
+        "prediction": "Based on the provided context, the Normans were present in Normandy starting from the **10th century** (specifically beginning with their settlement under Rollo around 911) and continued to exist there as a distinct people through the succeeding centuries.\n\nKey details regarding their presence include:\n*   **Origins:** They emerged initially in the first half of the 10th century [1].\n*   **Establishment:** The Duchy of Normandy was established by treaty in **911** between King Charles III of West Francia and Viking ruler Rollo [5].\n*   **Duration:** Their distinct cultural and ethnic identity emerged initially in the first half of the 10th century and \"continued to evolve over the succeeding centuries\" [1]. They remained a significant political, cultural, and military force in medieval France until they eventually merged with native populations or assimilated into other cultures (such as English or Irish) later on [3], [8].\n\nSources: [1], [5]",
+        "f1": 0.0676,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 480,
+        "latency_ms": 9526,
         "legs": {
           "dense": {
             "status": "ok",
@@ -888,12 +888,12 @@
           "Denmark, Iceland and Norway",
           "Denmark, Iceland and Norway"
         ],
-        "prediction": "",
-        "f1": 0.0111,
+        "prediction": "Based on the provided text, the Norse originated from **Denmark**, **Iceland**, and **Norway**. The text also mentions that some contingents included \"Norse\u2013Gaels\" and possibly \"Swedes,\" though it explicitly identifies Denmark, Iceland, and Norway as the primary sources for the raiders who gave their name to Normandy [1].",
+        "f1": 0.1569,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 469,
+        "latency_ms": 2925,
         "legs": {
           "dense": {
             "status": "ok",
@@ -925,12 +925,12 @@
           "Rollo",
           "Rollo"
         ],
-        "prediction": "",
-        "f1": 0.0063,
+        "prediction": "Based on the provided context, the Norse leader was **Rollo**. He led the Viking raiders and pirates from Denmark, Iceland, and Norway who agreed to swear fealty to King Charles III of West Francia in exchange for establishing the Duchy of Normandy [1].",
+        "f1": 0.0455,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "medium",
-        "latency_ms": 484,
+        "latency_ms": 1788,
         "legs": {
           "dense": {
             "status": "ok",
@@ -962,12 +962,12 @@
           "10th",
           "10th"
         ],
-        "prediction": "",
-        "f1": 0.0079,
+        "prediction": "Based on the provided text, the distinct cultural and ethnic identity of the Normans emerged initially in the **first half of the 10th century**.\n\nSource [1] states: \"The distinct cultural and ethnic identity of the Normans emerged initially in the first half of the 10th century...\"",
+        "f1": 0.2642,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 521,
+        "latency_ms": 2568,
         "legs": {
           "dense": {
             "status": "ok",
@@ -998,12 +998,12 @@
           "William the Conqueror",
           "William the Conqueror"
         ],
-        "prediction": "",
-        "f1": 0.0142,
+        "prediction": "Based on the provided text, **William II** (also referred to as **Duke William**) of Normandy was the leader who conquered England at the Battle of Hastings in 1066. The text notes that he killed King Harold II during this battle [1]. Additionally, the text mentions an expedition led by \"their duke, William\" which resulted in the Norman conquest of England [2], though it does not explicitly link the specific title \"William II\" to the Battle of Hastings in the second paragraph; however, the first paragraph identifies him as Duke William II who conducted the conquest.\n\n*Note: While historical records identify the leader at the Battle of Hastings as William I (the Conqueror), the provided text refers to him as \"Duke William II\" or simply \"William\".*",
+        "f1": 0.0469,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 518,
+        "latency_ms": 3680,
         "legs": {
           "dense": {
             "status": "ok",
@@ -1034,12 +1034,12 @@
           "Richard I",
           "Richard I"
         ],
-        "prediction": "",
-        "f1": 0.0025,
+        "prediction": "Based on the provided context, the Duchy of Normandy was established in 911 as a fiefdom under the rule of **Rollo** (also referred to as Rollo the Viking), who agreed to swear fealty to King Charles III of West Francia. Following his establishment of the duchy, it became ruled by the **Norman dynasty**.\n\nSpecifically mentioned rulers include:\n*   **Rollo**: The founder of the Duchy [1], [4].\n*   **Richard I of Normandy**: Under whose rule the principality was forged into a cohesive and formidable state [3].\n*   **William II (the Conqueror)**: Duke William who conquered England in 1066; he is also referred to as \"William the Lion-Heart\" in the context of serving as a Crusader king alongside other Normans [2], [6].\n*   **Richard I**: Referred to as Richard the Lion-Heart, who served as an Anglo-Norman king and Crusader leader [6].\n\nThe text notes that these Norman rulers were culturally distinct from the old French aristocracy but eventually merged with native populations over time [4].",
+        "f1": 0.0248,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 486,
+        "latency_ms": 5738,
         "legs": {
           "dense": {
             "status": "ok",
@@ -1070,12 +1070,12 @@
           "Catholic orthodoxy",
           "Catholic"
         ],
-        "prediction": "",
-        "f1": 0.0023,
+        "prediction": "Based on the provided context, the Normans adopted **Catholicism** (Christianity).\n\nThe text states that they replaced their original Norse religion with Catholicism after settling in Normandy [9]. They became \"exponents of the Catholic orthodoxy into which they assimilated\" and were noted for their \"Christian piety\" [1]. Additionally, it mentions that Rollo's descendants replaced the Norse religion with Catholicism as part of their cultural synthesis [9].\n\n**Sources:**\n*   [1] \"...becoming exponents of the Catholic orthodoxy into which they assimilated.\"\n*   [9] \"The descendants of Rollo's Vikings and their Frankish wives would replace the Norse religion and Old Norse language with Catholicism (Christianity)...\"",
+        "f1": 0.0396,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 473,
+        "latency_ms": 4165,
         "legs": {
           "dense": {
             "status": "ok",
@@ -1106,12 +1106,12 @@
           "Norseman, Viking",
           "Norseman, Viking"
         ],
-        "prediction": "",
-        "f1": 0.0023,
+        "prediction": "Based on the provided context, the original meaning of the word \"Norman\" comes from Old Low Franconian *Nortmann* or directly from Old Norse *Nor\u00f0ma\u00f0r*, both of which mean **\"Northman\"** or **\"Viking\"** [1]. The term was used to describe the Norse raiders and pirates who settled in the region that became Normandy.",
+        "f1": 0.0385,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 498,
+        "latency_ms": 2764,
         "legs": {
           "dense": {
             "status": "ok",
@@ -1142,12 +1142,12 @@
           "9th century",
           "9th century"
         ],
-        "prediction": "",
-        "f1": 0.0025,
+        "prediction": "Based on the provided text, the Latinized versions of the word \"Norman\" (such as *Nortmannus*, *Normannus*, or *Nordmannus*) were **recorded in Medieval Latin during the 9th century**. [1]",
+        "f1": 0.1333,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 527,
+        "latency_ms": 2250,
         "legs": {
           "dense": {
             "status": "ok",
@@ -1178,12 +1178,12 @@
           "911",
           "911"
         ],
-        "prediction": "",
-        "f1": 0.0013,
+        "prediction": "The Duchy of Normandy was established in **911** through the Treaty of Saint-Clair-sur-Epte between King Charles III of West Francia and the Viking ruler Rollo [1].",
+        "f1": 0.0741,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 503,
+        "latency_ms": 2023,
         "legs": {
           "dense": {
             "status": "ok",
@@ -1214,12 +1214,12 @@
           "King Charles III",
           "King Charles III"
         ],
-        "prediction": "",
-        "f1": 0.0155,
+        "prediction": "Rollo signed the Treaty of Saint-Clair-sur-Epte with **King Charles III of West Francia** (also known as Charles the Simple). The source text states that the Duchy of Normandy was established by this treaty between \"King Charles III of West Francia and the famed Viking ruler Rollo\" [1].",
+        "f1": 0.12,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 486,
+        "latency_ms": 2017,
         "legs": {
           "dense": {
             "status": "ok",
@@ -1250,12 +1250,12 @@
           "Epte",
           "Seine"
         ],
-        "prediction": "",
-        "f1": 0.0099,
+        "prediction": "Based on the provided text, the Duchy of Normandy was originally established by the treaty of Saint-Clair-sur-Epte between King Charles III and Rollo. The territory offered to them lay **between the river Epte** and the Atlantic coast [1]. Therefore, the river that originally bounded the duchy (on its eastern side) is the **Epte**.",
+        "f1": 0.037,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "low",
-        "latency_ms": 491,
+        "latency_ms": 2184,
         "legs": {
           "dense": {
             "status": "ok",
@@ -1286,12 +1286,12 @@
           "Rollo",
           "Rollo"
         ],
-        "prediction": "",
-        "f1": 0.0045,
+        "prediction": "Based on the provided text, there is no mention of a specific individual or group who gave the **original** Viking settlers a common identity. The text states that before Rollo's arrival, populations in Normandy did not differ significantly from Picardy or \u00cele-de-France [1], and while earlier Viking settlers arrived in the 880s, they were divided into separate colonies without mentioning a shared identity being formed at that time [1].\n\nThe text does mention that **Rollo** led contingents who raided and settled Normandy, and his descendants blended with Frankish populations to synthesize a unique \"Norman\" culture [1], but it describes this cultural synthesis as occurring over generations of assimilation rather than Rollo giving the *original* settlers an identity upon arrival.\n\nTherefore, the provided context does not contain enough information to answer who gave the original Viking settlers a common identity.",
+        "f1": 0.0143,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 445,
+        "latency_ms": 4105,
         "legs": {
           "dense": {
             "status": "ok",
@@ -1322,12 +1322,12 @@
           "Catholicism",
           "Catholicism"
         ],
-        "prediction": "",
-        "f1": 0.0011,
+        "prediction": "Based on the provided text, there is no specific \"Norman religion\" distinct from Christianity (Catholicism). The Normans adopted the existing religious framework of the region they settled and assimilated into it.\n\nKey points regarding their religion include:\n*   **Adoption of Catholicism:** The descendants of Rollo's Vikings replaced Norse paganism with Catholicism (Christianity) [10]. They became \"exponents of the Catholic orthodoxy\" [2].\n*   **Church Reform:** In the early 11th century, Norman dukes initiated a program of church reform, encouraging the Cluniac reform of monasteries and patronizing intellectual pursuits within the church [4].\n*   **Role of the Church:** The church was utilized by the dukes as a unifying force for their duchy [4].\n*   **Destruction during later conflicts:** During the French Revolution, religious objects were purposefully destroyed due to an assault on religion [3].\n\nTherefore, the Normans practiced **Catholicism** (specifically adhering to Catholic orthodoxy).",
+        "f1": 0.0144,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 438,
+        "latency_ms": 5520,
         "legs": {
           "dense": {
             "status": "ok",
@@ -1358,12 +1358,12 @@
           "the north",
           "north"
         ],
-        "prediction": "",
-        "f1": 0.0021,
+        "prediction": "Based on the provided text, the Normans were located in **Normandy**, a region in northern France. Specifically:\n\n*   The territory was situated between the river **Epte** and the **Atlantic coast**.\n*   It corresponded to the **northern part of present-day Upper Normandy** down to the river **Seine**.\n*   Over time, the Duchy extended west beyond the Seine.\n*   The area roughly reproduced the old province of **Rouen** and was part of the former Frankish kingdom of **Neustria** [2].",
+        "f1": 0.0267,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 555,
+        "latency_ms": 3830,
         "legs": {
           "dense": {
             "status": "ok",
@@ -1394,12 +1394,12 @@
           "fighting horsemen",
           "fighting horsemen"
         ],
-        "prediction": "",
-        "f1": 0.0027,
+        "prediction": "Based on the provided text, one of the Normans' major exports was **fighting horsemen** (or fighting men/military mercenaries).\n\nThe text states that \"by 1066 Normandy had been exporting fighting horsemen for more than a generation\" [2]. Additionally, it notes that Norman adventurers and mercenaries were prominent in founding new kingdoms, serving as Crusaders, and working as mercenaries for various powers including the Byzantine Empire, Italy, and England [1], [2], [7].",
+        "f1": 0.0556,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 528,
+        "latency_ms": 3322,
         "legs": {
           "dense": {
             "status": "ok",
@@ -1430,12 +1430,12 @@
           "the Pechenegs, the Bulgars, and especially the Seljuk Turks",
           "the Seljuk Turks"
         ],
-        "prediction": "",
-        "f1": 0.0105,
+        "prediction": "Based on the provided text, the Normans did not have a single \"main\" enemy that applied uniformly to both Italy and Armenia; rather, their enemies varied by region and specific campaign. However, the text identifies several key adversaries:\n\n*   **In Southern Italy:** The primary enemy was the **Byzantine Empire**. The text states that Robert Guiscard drove the Byzantines out of southern Italy [1]. Later, under Bohemond (Robert's son), the Normans besieged Dyrrachium and fought against Byzantine resistance in Albania, eventually signing a peace treaty with them due to lack of supplies and disease [5].\n*   **In Armenia:** The text mentions that Normans served as mercenaries fighting against various groups including the **Pechenegs**, the **Bulgars**, and especially the **Seljuk Turks** [3]. Specifically regarding Armenia, it notes that some Normans joined Turkish forces to aid in the destruction of the **Armenian vassal-states of Sassoun and Taron** [2], implying these states were their adversaries at that time. Later, they served under Armenian generals like Philaretus Brachamius against these same enemies [2].\n*   **In Asia Minor (related to Armenia):** The text notes that Norman mercenaries sometimes fought alongside the Byzantines against Turks, but also mentions Roussel de Bailleul trying to carve out an independent state in Asia Minor which was stopped by the Byzantine general Alexius Komnenos [2].\n\nTherefore, while the **Byzantine Empire** was the dominant power they displaced and fought in Italy, their enemies in Armenia included local **vassal states (like Sassoun and Taron)** as well as external powers like the **Seljuk Turks**, Pechenegs, and Bulgars.",
+        "f1": 0.0695,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 526,
+        "latency_ms": 8206,
         "legs": {
           "dense": {
             "status": "ok",
@@ -1466,12 +1466,12 @@
           "in the 1050s",
           "in the 1050s"
         ],
-        "prediction": "",
-        "f1": 0.0275,
+        "prediction": "Based on the provided text, Herv\u00e9 served as a Byzantine general in the **1050s**. [1]",
+        "f1": 0.3333,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 534,
+        "latency_ms": 1199,
         "legs": {
           "dense": {
             "status": "ok",
@@ -1502,12 +1502,12 @@
           "In the 1060s",
           "In the 1060s"
         ],
-        "prediction": "",
-        "f1": 0.0132,
+        "prediction": "Based on the provided text, Robert Crispin led the Normans of Edessa against the Turks in the **1060s**. [1]",
+        "f1": 0.2727,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 491,
+        "latency_ms": 1310,
         "legs": {
           "dense": {
             "status": "ok",
@@ -1541,12 +1541,12 @@
           "France",
           "France"
         ],
-        "prediction": "",
-        "f1": 0.0013,
+        "prediction": "Based on the provided context, Normandy is a region in **France**.\n\nSource [1] states that the Duchy of Normandy was established between \"the river Epte and the Atlantic coast\" within the former Frankish kingdom of Neustria. Source [2] explicitly identifies it as \"a region in France.\" Additionally, source [7] mentions that early Norman kings of England owed homage to the \"King of France\" for their land on the continent (Normandy).",
+        "f1": 0.0282,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 1531,
+        "latency_ms": 3870,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -1578,12 +1578,12 @@
           "10th and 11th centuries",
           "10th and 11th centuries"
         ],
-        "prediction": "",
-        "f1": 0.0068,
+        "prediction": "Based on the provided context, the Normans were present in Normandy starting from the **10th and 11th centuries**.\n\nSpecifically:\n*   They gave their name to the region during this period [1].\n*   Their distinct cultural and ethnic identity emerged initially in the first half of the 10th century, evolving over succeeding centuries [1].\n*   The Duchy of Normandy was formed by treaty with the French crown during this time [6].\n\nThe text does not provide a specific end date for their presence as a distinct group, noting instead that they eventually merged with native populations and later identified themselves as English or Irish in other regions.",
+        "f1": 0.1101,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 384,
+        "latency_ms": 3990,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -1615,12 +1615,12 @@
           "Denmark, Iceland and Norway",
           "Denmark, Iceland and Norway"
         ],
-        "prediction": "",
-        "f1": 0.0111,
+        "prediction": "Based on the provided text, the Norse originated from **Denmark**, **Iceland**, and **Norway**. The text also mentions that some contingents included \"Norse\u2013Gaels\" and possibly \"Swedes,\" though it explicitly identifies Denmark, Iceland, and Norway as the primary sources for the raiders who gave their name to Normandy [1].",
+        "f1": 0.1569,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 426,
+        "latency_ms": 2188,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -1652,12 +1652,12 @@
           "Rollo",
           "Rollo"
         ],
-        "prediction": "",
-        "f1": 0.0063,
+        "prediction": "Based on the provided context, the Norse leader was **Rollo**. He led the Viking raiders and pirates from Denmark, Iceland, and Norway who agreed to swear fealty to King Charles III of West Francia in exchange for establishing the Duchy of Normandy [1].",
+        "f1": 0.0455,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "medium",
-        "latency_ms": 439,
+        "latency_ms": 1820,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -1689,12 +1689,12 @@
           "10th",
           "10th"
         ],
-        "prediction": "",
-        "f1": 0.0072,
+        "prediction": "Based on the provided text, the distinct cultural and ethnic identity of the Normans emerged initially in the **first half of the 10th century**.\n\nSource [1] states: \"The distinct cultural and ethnic identity of the Normans emerged initially in the first half of the 10th century...\"",
+        "f1": 0.2642,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 456,
+        "latency_ms": 2626,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -1725,12 +1725,12 @@
           "William the Conqueror",
           "William the Conqueror"
         ],
-        "prediction": "",
-        "f1": 0.0204,
+        "prediction": "Based on the provided text, **Duke William II** (also referred to as Duke William) of Normandy was the leader who conquered England at the Battle of Hastings in 1066. The text states that he killed King Harold II during this battle [1].",
+        "f1": 0.0889,
         "em": 0.0,
         "hit": 0.0,
         "confidence": "high",
-        "latency_ms": 449,
+        "latency_ms": 1788,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -1761,12 +1761,12 @@
           "Richard I",
           "Richard I"
         ],
-        "prediction": "",
-        "f1": 0.0023,
+        "prediction": "Based on the provided context, the Duchy of Normandy was ruled by a dynasty descended from Norse raiders and pirates who, under their leader **Rollo**, swore fealty to King Charles III of West Francia in the 10th century [4].\n\nThe text identifies specific rulers associated with the duchy:\n*   **Richard I** (referred to as Richard II in one instance regarding his sister's marriage) is mentioned as having forged the principality into a cohesive and formidable state under feudal tenure [3].\n*   **William the Conqueror** (also referred to as Duke William II or simply William) led an expedition that resulted in the Norman conquest of England in 1066; he was also described as \"Duke William\" in relation to his lands on the continent and owed homage to the King of France [2], [3].\n*   **Robert Guiscard** is mentioned as a patron who supported monks fleeing from Saint-Evroul Abbey, though the text does not explicitly state he ruled Normandy itself (he was an Italo-Norman prince) [8].\n\nTherefore, the duchy was ruled by the **Norman dynasty**, originating with Rollo and continuing through figures such as Richard I and William the Conqueror.",
+        "f1": 0.0214,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 440,
+        "latency_ms": 6092,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -1797,12 +1797,12 @@
           "Catholic orthodoxy",
           "Catholic"
         ],
-        "prediction": "",
-        "f1": 0.0021,
+        "prediction": "Based on the provided context, the Normans adopted **Christianity**, specifically becoming exponents of **Catholic orthodoxy**.\n\nKey points from the text include:\n*   They assimilated into the Catholic faith [1].\n*   The French Revolution's destruction of religious objects was described as an assault on religion, implying the Normans were a religious society at that time [4].\n*   In England, they utilized the **church** as a unifying force for their duchy and patronized monasteries (such as Mont-Saint-Michel and Bec) which were part of the Cluniac reform movement [3].\n*   They served as Crusaders under Italo-Norman princes like Bohemond I, an activity rooted in Christian religious duty [5].",
+        "f1": 0.0388,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 404,
+        "latency_ms": 4315,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -1833,12 +1833,12 @@
           "Norseman, Viking",
           "Norseman, Viking"
         ],
-        "prediction": "",
-        "f1": 0.002,
+        "prediction": "Based on the provided context, the original meaning of the word \"Norman\" comes from Old Low Franconian *Nortmann* or directly from Old Norse *Nor\u00f0ma\u00f0r*, both of which mean **\"Northman\"** or **\"Viking\"** [1]. The term was used to describe the Norse raiders and pirates who settled in the region that became Normandy.",
+        "f1": 0.0385,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 426,
+        "latency_ms": 2872,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -1869,12 +1869,12 @@
           "9th century",
           "9th century"
         ],
-        "prediction": "",
-        "f1": 0.0021,
+        "prediction": "Based on the provided text, the Latinized versions of the name \"Norman\" (such as *Nortmannus*, *Normannus*, and *Nordmannus*) were **recorded in Medieval Latin during the 9th century**.\n\nSource: [1]",
+        "f1": 0.129,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 437,
+        "latency_ms": 2395,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -1905,12 +1905,12 @@
           "911",
           "911"
         ],
-        "prediction": "",
+        "prediction": "Based on the provided context, the text does not explicitly state a single specific date (day or month) for the founding of the Duchy of Normandy. However, it provides the following timeline details:\n\n*   The Normans were descended from Norse raiders who, under their leader **Rollo**, agreed to swear fealty to King Charles III of West Francia in the **10th and 11th centuries** [4].\n*   It states that \"The Duchy of Normandy, which they formed by treaty with the French crown... was a great fief\" [2], implying it was established through this treaty between Rollo and Charles III.\n*   The text notes that the distinct cultural and ethnic identity emerged initially in the **first half of the 10th century** [4].\n\nTherefore, while the exact date is not listed, the Duchy was formed by treaty with the French crown during the **10th or early 11th century**, following Rollo's agreement to swear fealty.",
         "f1": 0.0,
         "em": 0.0,
         "hit": 0.0,
         "confidence": "high",
-        "latency_ms": 412,
+        "latency_ms": 5208,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -1941,12 +1941,12 @@
           "King Charles III",
           "King Charles III"
         ],
-        "prediction": "",
+        "prediction": "Based on the provided context, there is no mention of who Rollo signed the Treaty of Saint-Clair-sur-Epte with. The text only describes his arrival, the composition of his contingents (Danes, Norwegians, Norse\u2013Gaels, etc.), and the cultural synthesis that followed [1].",
         "f1": 0.0,
         "em": 0.0,
         "hit": 0.0,
         "confidence": "low",
-        "latency_ms": 424,
+        "latency_ms": 1787,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -1982,7 +1982,7 @@
         "em": 0.0,
         "hit": 0.0,
         "confidence": "none",
-        "latency_ms": 434,
+        "latency_ms": 439,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -2013,12 +2013,12 @@
           "Rollo",
           "Rollo"
         ],
-        "prediction": "",
-        "f1": 0.003,
+        "prediction": "Based on the provided context, **Rollo** is identified as the leader under whom the Viking contingents raided, settled Normandy, and parts of the Atlantic coast, thereby establishing their presence in the region. The text states that \"Under their leader Rollo, agreed to swear fealty to King Charles III of West Francia,\" which marks the transition from raiding to settlement [3]. While the text notes that earlier settlers were divided between different colonies (east and west) and separated by traditional boundaries where they remained distinct, it is Rollo's specific contingent who settled Normandy as a unified group under his leadership.\n\nAnswer: **Rollo**",
+        "f1": 0.0196,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 416,
+        "latency_ms": 3059,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -2049,12 +2049,12 @@
           "Catholicism",
           "Catholicism"
         ],
-        "prediction": "",
+        "prediction": "Based on the provided text, the Normans adopted **Catholic orthodoxy** as their religion. They assimilated into this faith, which became a central part of their identity alongside their martial spirit [2].\n\nThe text further notes that:\n*   The French Revolution in the 18th century caused \"purposeful destruction of religious objects\" due to its assault on religion [3].\n*   In England, the Normans utilized the **church** as a unifying force for their duchy and encouraged church reform (specifically the Cluniac reform) through patronage of monasteries like Mont-Saint-Michel and Bec [4].\n*   The Anglo-Norman language evolved alongside the Latin used by the **church**, which played a role in the development of Middle English [9].",
         "f1": 0.0,
         "em": 0.0,
         "hit": 0.0,
         "confidence": "high",
-        "latency_ms": 433,
+        "latency_ms": 4343,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -2085,12 +2085,12 @@
           "the north",
           "north"
         ],
-        "prediction": "",
-        "f1": 0.0021,
+        "prediction": "Based on the provided text, the Normans were located in **Normandy**, which is described as a region in northern France [1]. Specifically:\n\n*   The Duchy of Normandy was established by treaty between King Charles III of West Francia and Rollo. It was situated in the former Frankish kingdom of Neustria [2].\n*   The territory corresponded to the **northern part** of present-day Upper Normandy, extending down to the river Seine (and eventually west beyond it) [2].\n*   This area roughly covered the old province of Rouen and reproduced the Roman administrative structure of Gallia Lugdunensis II [2].",
+        "f1": 0.0211,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 448,
+        "latency_ms": 3877,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -2121,12 +2121,12 @@
           "fighting horsemen",
           "fighting horsemen"
         ],
-        "prediction": "",
-        "f1": 0.002,
+        "prediction": "Based on the provided text, one of the Normans' major exports was **fighting horsemen** (or fighting men/knights).\n\nThe document states that \"by 1066 Normandy had been exporting fighting horsemen for more than a generation\" because many Norman knights remained poor and land-hungry [2]. Additionally, they were noted as being \"famed for their martial spirit\" and having significant \"military accomplishments and innovations,\" which contributed to their reputation as mercenaries who fought in various regions including Italy, the Byzantine Empire, Armenia, Sicily, and the Crusader states [1][2].",
+        "f1": 0.046,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 434,
+        "latency_ms": 3813,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -2157,12 +2157,12 @@
           "the Pechenegs, the Bulgars, and especially the Seljuk Turks",
           "the Seljuk Turks"
         ],
-        "prediction": "",
-        "f1": 0.0106,
+        "prediction": "Based on the provided text, the Normans did not have a single \"main\" enemy that applied uniformly to both Italy and Armenia; rather, their enemies varied by region and specific campaign. However, the text identifies several key adversaries:\n\n*   **In Southern Italy:** The primary enemies were the **Byzantines** (who drove them out) and the **Saracens**.\n    *   Source [1]: \"...Norman adventurer... ultimately drove the Byzantines out of southern Italy.\"\n    *   Source [7]: \"...conquering southern Italy on the Saracens and Byzantines...\"\n\n*   **In Armenia and Anatolia:** The Normans fought against various Turkic groups, specifically the **Pechenegs**, the **Bulgars**, and especially the **Seljuk Turks**.\n    *   Source [3]: \"...fighting against the Pechenegs, the Bulgars, and especially the Seljuk Turks.\"\n    *   Source [2]: Mentions Normans serving under Isaac Komnenos in Asia Minor where Roussel de Bailleul was stopped by the Byzantine general Alexius Komnenos (implying conflict with local forces or internal Byzantine politics), and notes Normans joined Turkish forces to aid in the destruction of Armenian vassal-states.\n\n*   **In General Context:** The text also mentions fighting against the **Armenian state** itself in Cilicia, where some Normans served as mercenaries for the Armenians rather than fighting them [2]. However, regarding military campaigns mentioned (like those led by Robert Guiscard), the Byzantines were the primary opposing force.\n\n**Summary:**\n*   In Italy: The **Byzantine Empire** and the **Saracens**.\n*   In Armenia/Anatolia: The **Seljuk Turks**, **Pechenegs**, and **Bulgars** (as well as Armenian vassal-states like Sassoun and Taron in specific instances).",
+        "f1": 0.0747,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 461,
+        "latency_ms": 8721,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -2193,12 +2193,12 @@
           "in the 1050s",
           "in the 1050s"
         ],
-        "prediction": "",
-        "f1": 0.0275,
+        "prediction": "Based on the provided text, Herv\u00e9 served as a Byzantine general in the **1050s**. [1]",
+        "f1": 0.3333,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 458,
+        "latency_ms": 1165,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -2229,12 +2229,12 @@
           "In the 1060s",
           "In the 1060s"
         ],
-        "prediction": "",
-        "f1": 0.0132,
+        "prediction": "Based on the provided text, Robert Crispin led the Normans of Edessa against the Turks in the **1060s**. [1]",
+        "f1": 0.2727,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 469,
+        "latency_ms": 1267,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -2268,12 +2268,12 @@
           "France",
           "France"
         ],
-        "prediction": "",
-        "f1": 0.0013,
+        "prediction": "Based on the provided context, Normandy is located in **France**.\n\nThe text states that Normandy is \"a region in France\" [2] and was established as a fiefdom within the former Frankish kingdom of Neustria (West Francia) [1]. Additionally, it mentions that the Duchy of Normandy became a great fief of medieval France [5].",
+        "f1": 0.037,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 525,
+        "latency_ms": 2578,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2305,12 +2305,12 @@
           "10th and 11th centuries",
           "10th and 11th centuries"
         ],
-        "prediction": "",
-        "f1": 0.0062,
+        "prediction": "Based on the provided text, the Normans were present in Normandy starting from the **10th century** (specifically beginning with the establishment of the Duchy in 911) and continued to exist there for several centuries, evolving into a distinct culture that eventually merged with local populations.\n\nKey details regarding their presence include:\n*   **Establishment:** The Duchy of Normandy was established in **911** through the Treaty of Saint-Clair-sur-Epte between King Charles III of West Francia and Viking ruler Rollo [5].\n*   **Timeline of Presence:** They were active from the early 10th century (when their distinct cultural identity emerged) well into the 12th century. By the time of the First Crusade in 1107, Normans under Bohemond were still operating as a military force [9].\n*   **Duration:** The text notes that by **1066**, Normandy had been exporting fighting horsemen for more than a generation (indicating at least 50+ years of presence prior to the Norman Conquest of England) and that their descendants eventually merged with native Frankish populations over succeeding centuries [1], [3].\n\nTherefore, the Normans were in Normandy from **911** onwards.",
+        "f1": 0.0552,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 509,
+        "latency_ms": 6467,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2342,12 +2342,12 @@
           "Denmark, Iceland and Norway",
           "Denmark, Iceland and Norway"
         ],
-        "prediction": "",
-        "f1": 0.0111,
+        "prediction": "Based on the provided text, the Norse originated from **Denmark**, **Iceland**, and **Norway**. The text also mentions that some contingents included \"Norse\u2013Gaels\" and possibly \"Swedes,\" though it explicitly identifies Denmark, Iceland, and Norway as the primary sources for the raiders who gave their name to Normandy [1].",
+        "f1": 0.1569,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 506,
+        "latency_ms": 1960,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2379,12 +2379,12 @@
           "Rollo",
           "Rollo"
         ],
-        "prediction": "",
-        "f1": 0.0063,
+        "prediction": "Based on the provided context, the Norse leader was **Rollo**. He led the Viking raiders and pirates from Denmark, Iceland, and Norway who agreed to swear fealty to King Charles III of West Francia in exchange for establishing the Duchy of Normandy [1].",
+        "f1": 0.0455,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "medium",
-        "latency_ms": 571,
+        "latency_ms": 1631,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2416,12 +2416,12 @@
           "10th",
           "10th"
         ],
-        "prediction": "",
-        "f1": 0.0079,
+        "prediction": "Based on the provided text, the distinct cultural and ethnic identity of the Normans emerged initially in the **first half of the 10th century**.\n\nSource [1] states: \"The distinct cultural and ethnic identity of the Normans emerged initially in the first half of the 10th century...\"",
+        "f1": 0.2642,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 488,
+        "latency_ms": 2544,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2452,12 +2452,12 @@
           "William the Conqueror",
           "William the Conqueror"
         ],
-        "prediction": "",
-        "f1": 0.0142,
+        "prediction": "Based on the provided context, **William II** (also referred to as **Duke William**) of Normandy was the leader who conquered England at the Battle of Hastings in 1066. The text states that he killed King Harold II during this battle [1]. Additionally, the second source mentions an expedition led by \"their duke, William the Conqueror,\" which resulted in the Norman conquest of England at the same event [2].\n\n*Note: While historical records typically identify him as William I (William the Conqueror), the provided text refers to him as Duke William II.*",
+        "f1": 0.0638,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 511,
+        "latency_ms": 3021,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2488,12 +2488,12 @@
           "Richard I",
           "Richard I"
         ],
-        "prediction": "",
-        "f1": 0.0022,
+        "prediction": "Based on the provided context, the Duchy of Normandy was established in 911 as a fiefdom through the Treaty of Saint-Clair-sur-Epte between King Charles III of West Francia and **Rollo** (a famed Viking ruler), who became its first Duke [1].\n\nThe text mentions several other rulers associated with the duchy, though it does not provide a complete list of every duke:\n*   **Richard I**: The text notes that under his rule, the Duchy was forged into a cohesive and formidable principality in feudal tenure [4].\n*   **William II (Duke William)**: He conquered England at the Battle of Hastings in 1066 [3].\n*   **Richard II**: His sister Emma married King Ethelred II of England, creating ties between Normandy and England [6].\n*   **Henry I**: The text mentions that his daughter Maud was married to Alexander I of Scotland [9].\n\nThe context generally refers to them collectively as \"Norman rulers,\" \"Dukes of Normandy,\" or the \"Norman dynasty\" who were culturally distinct from the old French aristocracy and ruled both in Normandy and England (as Anglo-Norman kings) [3], [5], [7].",
+        "f1": 0.0229,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 510,
+        "latency_ms": 6504,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2524,12 +2524,12 @@
           "Catholic orthodoxy",
           "Catholic"
         ],
-        "prediction": "",
-        "f1": 0.0021,
+        "prediction": "Based on the provided context, the Normans adopted **Catholicism** (Christianity).\n\nKey points from the text include:\n*   They \"eventually for their Christian piety\" and became \"exponents of the Catholic orthodoxy into which they assimilated\" [1].\n*   The descendants of Rollo's Vikings replaced the Norse religion with \"Catholicism (Christianity)\" after settling in Normandy [10].\n*   In England, early Norman kings owed homage to the King of France and considered themselves part of a culture that blended traditions while adopting Catholicism [8].\n*   The destruction caused by the French Revolution was specifically noted as an \"assault on religion\" targeting religious objects, implying the Normans' established Christian heritage [4].\n\nSources: [1], [2], [4], [5], [8], [10]",
+        "f1": 0.036,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 496,
+        "latency_ms": 4744,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2560,12 +2560,12 @@
           "Norseman, Viking",
           "Norseman, Viking"
         ],
-        "prediction": "",
-        "f1": 0.0021,
+        "prediction": "Based on the provided context, the original meaning of the word \"Norman\" comes from Old Low Franconian *Nortmann* or directly from Old Norse *Nor\u00f0ma\u00f0r*, both of which mean **\"Northman\"** or **\"Viking\"** [1]. The term was used to describe the Norse raiders and pirates who settled in the region that became Normandy.",
+        "f1": 0.0385,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 502,
+        "latency_ms": 2942,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2596,12 +2596,12 @@
           "9th century",
           "9th century"
         ],
-        "prediction": "",
-        "f1": 0.0021,
+        "prediction": "Based on the provided text, the Latinized versions of the word \"Norman\" (such as *Nortmannus*, *Normannus*, or *Nordmannus*) were **recorded in Medieval Latin during the 9th century**. [1]",
+        "f1": 0.1333,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 514,
+        "latency_ms": 2471,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2632,12 +2632,12 @@
           "911",
           "911"
         ],
-        "prediction": "",
-        "f1": 0.0011,
+        "prediction": "The Duchy of Normandy was established in **911** through the Treaty of Saint-Clair-sur-Epte between King Charles III of West Francia and the Viking ruler Rollo [1].",
+        "f1": 0.0741,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 495,
+        "latency_ms": 2193,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2668,12 +2668,12 @@
           "King Charles III",
           "King Charles III"
         ],
-        "prediction": "",
+        "prediction": "Based on the provided context, there is no mention of who Rollo signed the Treaty of Saint-Clair-sur-Epte with. The text only describes his arrival, the composition of his contingents (Danes, Norwegians, Norse\u2013Gaels, etc.), and the cultural synthesis that followed [1].",
         "f1": 0.0,
         "em": 0.0,
         "hit": 0.0,
         "confidence": "low",
-        "latency_ms": 534,
+        "latency_ms": 1820,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2704,12 +2704,12 @@
           "Epte",
           "Seine"
         ],
-        "prediction": "",
-        "f1": 0.0099,
+        "prediction": "Based on the provided text, the Duchy of Normandy was originally established by the treaty of Saint-Clair-sur-Epte between King Charles III and Rollo. The territory offered to them lay **between the river Epte** and the Atlantic coast [1]. Therefore, the river that originally bounded the duchy (on its eastern side) is the **Epte**.",
+        "f1": 0.037,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "low",
-        "latency_ms": 481,
+        "latency_ms": 2049,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2740,12 +2740,12 @@
           "Rollo",
           "Rollo"
         ],
-        "prediction": "",
-        "f1": 0.003,
+        "prediction": "Based on the provided context, **Rollo** is identified as the leader under whom the Viking contingents raided, settled Normandy, and parts of the Atlantic coast, thereby establishing their presence in the region. The text states that these groups \"under their leader Rollo, agreed to swear fealty\" [3]. While the text does not explicitly state that Rollo coined a specific name for them at that exact moment, it notes that they are collectively referred to as \"Normans\" (from \"Norseman\") and that this distinct cultural identity emerged initially in the first half of the 10th century under his leadership [3].\n\nAnswer: **Rollo**",
+        "f1": 0.0198,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 493,
+        "latency_ms": 3257,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2776,12 +2776,12 @@
           "Catholicism",
           "Catholicism"
         ],
-        "prediction": "",
-        "f1": 0.0011,
+        "prediction": "Based on the provided text, there is no specific \"Norman religion\" distinct from Christianity (Catholicism). The Normans adopted the existing religious framework of the region they settled and assimilated into it.\n\nKey points regarding their religion include:\n*   **Adoption of Catholicism:** The descendants of Rollo's Vikings replaced Norse paganism with Catholicism (Christianity) [10]. They became \"exponents of the Catholic orthodoxy\" [2].\n*   **Church Reform:** In the early 11th century, Norman dukes initiated a program of church reform, encouraging the Cluniac reform of monasteries and patronizing intellectual pursuits within the church [4].\n*   **Role of the Church:** The church was utilized by the dukes as a unifying force for their duchy [4].\n*   **Destruction during later conflicts:** During the French Revolution, religious objects were purposefully destroyed due to an assault on religion [3].\n\nTherefore, the Normans practiced **Catholicism** (specifically adhering to Catholic orthodoxy).",
+        "f1": 0.0144,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 509,
+        "latency_ms": 5554,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2812,12 +2812,12 @@
           "the north",
           "north"
         ],
-        "prediction": "",
-        "f1": 0.0021,
+        "prediction": "Based on the provided text, the Normans were located in **Normandy**, which is described as a region in northern France [1]. Specifically:\n\n*   The territory was situated between the river Epte and the Atlantic coast [2].\n*   It corresponded to the **northern part of present-day Upper Normandy** down to the river Seine, though the Duchy eventually extended west beyond the Seine [2].\n*   The area roughly reproduced the old province of Rouen and was part of the former Frankish kingdom of Neustria (specifically Gallia Lugdunensis II) [2].",
+        "f1": 0.0233,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 503,
+        "latency_ms": 4064,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2848,12 +2848,12 @@
           "fighting horsemen",
           "fighting horsemen"
         ],
-        "prediction": "",
-        "f1": 0.0023,
+        "prediction": "Based on the provided text, one of the Normans' major exports was **fighting horsemen** (or fighting men/military mercenaries).\n\nThe text states that \"by 1066 Normandy had been exporting fighting horsemen for more than a generation\" [2]. Additionally, it notes that Norman adventurers and mercenaries were prominent in founding new kingdoms like Sicily and Antioch, as well as serving in the Byzantine Empire and on the Crusades [1], [2], [7].",
+        "f1": 0.0563,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 530,
+        "latency_ms": 3226,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2884,12 +2884,12 @@
           "the Pechenegs, the Bulgars, and especially the Seljuk Turks",
           "the Seljuk Turks"
         ],
-        "prediction": "",
-        "f1": 0.0106,
+        "prediction": "Based on the provided text, the Normans did not have a single \"main\" enemy that applied uniformly to both Italy and Armenia; rather, their enemies varied by region and specific campaign. However, the text identifies several key adversaries:\n\n*   **In Southern Italy:** The primary enemy was the **Byzantine Empire**. The text states that Robert Guiscard drove the Byzantines out of southern Italy [1]. Later, under Bohemond I (Robert's son), the Normans besieged Dyrrachium and fought against the Byzantines in Albania, though they eventually signed a peace treaty with them due to lack of supplies and resistance [5].\n*   **In Armenia:** The text notes that Norman mercenaries served in Armenia fighting against specific groups: \"the Pechenegs, the Bulgars, and especially the Seljuk Turks\" [3]. It also mentions Normans serving under Armenian generals (like Philaretus Brachamius) to aid in the destruction of \"Armenian vassal-states of Sassoun and Taron,\" implying these states were adversaries or targets of their campaigns alongside the Turks [2].\n*   **In Asia Minor:** The text highlights that Normans fought against the **Turks** (specifically mentioned as fighting against Turks in Edessa under Isaac Komnenos) [2] and notes that Roussel de Bailleul tried to carve out a state but was stopped by the Byzantine general Alexius Komnenos, indicating conflict with both local populations and the central authority [2].\n\nTherefore, while the **Byzantine Empire** was the dominant political power they fought in Italy (and later Albania), their main military adversaries in Armenia were identified as the **Pechenegs, Bulgars, Seljuk Turks**, and various **Armenian vassal-states**.",
+        "f1": 0.0698,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 530,
+        "latency_ms": 7572,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2920,12 +2920,12 @@
           "in the 1050s",
           "in the 1050s"
         ],
-        "prediction": "",
-        "f1": 0.0275,
+        "prediction": "Based on the provided text, Herv\u00e9 served as a Byzantine general in the **1050s**. [1]",
+        "f1": 0.3333,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 526,
+        "latency_ms": 1193,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2956,12 +2956,12 @@
           "In the 1060s",
           "In the 1060s"
         ],
-        "prediction": "",
-        "f1": 0.0132,
+        "prediction": "Based on the provided text, Robert Crispin led the Normans of Edessa against the Turks in the **1060s**. [1]",
+        "f1": 0.2727,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 531,
+        "latency_ms": 1287,
         "legs": {
           "dense": {
             "status": "ok",
@@ -2995,12 +2995,12 @@
           "France",
           "France"
         ],
-        "prediction": "",
-        "f1": 0.0013,
+        "prediction": "Based on the provided context, Normandy is located in **France**.\n\nSource [1] states that the Duchy of Normandy was established between the river Epte and the Atlantic coast within the \"former Frankish kingdom of Neustria\" and corresponds to parts of present-day Upper Normandy. Source [2] explicitly identifies it as \"a region in France.\"",
+        "f1": 0.037,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 515,
+        "latency_ms": 2523,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3032,12 +3032,12 @@
           "10th and 11th centuries",
           "10th and 11th centuries"
         ],
-        "prediction": "",
-        "f1": 0.0061,
+        "prediction": "Based on the provided context, the Normans were present in Normandy starting from the **10th century** (specifically beginning with their settlement under Rollo around 911) and continued to exist there as a distinct people through the succeeding centuries.\n\nKey details regarding their presence include:\n*   **Origins:** They emerged initially in the first half of the 10th century [1].\n*   **Establishment:** The Duchy of Normandy was established by treaty in **911** between King Charles III of West Francia and Viking ruler Rollo [5].\n*   **Duration:** Their distinct cultural and ethnic identity emerged initially in the first half of the 10th century and \"continued to evolve over the succeeding centuries\" [1]. They remained a significant political, cultural, and military force in medieval France until they eventually merged with native populations or assimilated into other cultures (such as English or Irish) later on [3], [8].\n\nSources: [1], [5]",
+        "f1": 0.0676,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 516,
+        "latency_ms": 5242,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3069,12 +3069,12 @@
           "Denmark, Iceland and Norway",
           "Denmark, Iceland and Norway"
         ],
-        "prediction": "",
-        "f1": 0.0159,
+        "prediction": "Based on the provided text, the Norse originated from **Denmark**, **Iceland**, and **Norway**. The text also mentions \"Norse\u2013Gaels\" and \"Anglo-Danes,\" but explicitly identifies Denmark, Iceland, and Norway as the primary sources for the raiders and pirates who gave their name to Normandy [1].",
+        "f1": 0.1702,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 547,
+        "latency_ms": 2015,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3106,12 +3106,12 @@
           "Rollo",
           "Rollo"
         ],
-        "prediction": "",
-        "f1": 0.0063,
+        "prediction": "Based on the provided context, the Norse leader was **Rollo**. He led the Viking raiders and pirates from Denmark, Iceland, and Norway who agreed to swear fealty to King Charles III of West Francia in exchange for establishing the Duchy of Normandy [1].",
+        "f1": 0.0455,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "medium",
-        "latency_ms": 554,
+        "latency_ms": 1764,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3143,12 +3143,12 @@
           "10th",
           "10th"
         ],
-        "prediction": "",
-        "f1": 0.0069,
+        "prediction": "Based on the provided text, the distinct cultural and ethnic identity of the Normans emerged initially in the **first half of the 10th century**.\n\nSource [1] states: \"The distinct cultural and ethnic identity of the Normans emerged initially in the first half of the 10th century...\"",
+        "f1": 0.2642,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 534,
+        "latency_ms": 2589,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3179,12 +3179,12 @@
           "William the Conqueror",
           "William the Conqueror"
         ],
-        "prediction": "",
-        "f1": 0.0142,
+        "prediction": "Based on the provided context, **William II** (also referred to as **Duke William**) of Normandy was the leader who conquered England at the Battle of Hastings in 1066. The text states that he killed King Harold II during this battle [1]. Additionally, the second source mentions an expedition led by \"their duke, William the Conqueror,\" which resulted in the Norman conquest of England at the same battle [2].\n\n*Note: While historical records typically identify him as William I (William the Conqueror), the provided text refers to him as Duke William II.*",
+        "f1": 0.0638,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 636,
+        "latency_ms": 2948,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3215,12 +3215,12 @@
           "Richard I",
           "Richard I"
         ],
-        "prediction": "",
-        "f1": 0.0022,
+        "prediction": "Based on the provided context, the Duchy of Normandy was established in 911 as a fiefdom under the rule of **Rollo** (also referred to as Rollo the Viking), who became its first Duke. The treaty establishing the duchy was signed between King Charles III of West Francia and Rollo [1].\n\nThe text further notes that the Normans eventually merged with native populations, leading to a period where the Norman aristocracy often identified themselves as English during the Hundred Years' War [3]. It also mentions specific individuals associated with the region's history:\n*   **William II (William the Conqueror)**: A Duke of Normandy who conquered England in 1066 [3].\n*   **Richard I**: Under whose rule the Duchy was forged into a cohesive principality [4].\n*   **Duke Richard II**: Whose sister, Emma, married King Ethelred II of England [6].\n*   **King David I of Scotland**: Who married Sybilla of Normandy and introduced Norman culture to Scotland (though this relates to the Kingdom of Scotland rather than ruling the Duchy itself) [9].\n\nThe context does not provide a complete list of every ruler, but it confirms that Rollo founded the duchy and that subsequent Dukes were part of a single Norman culture that eventually evolved into the Anglo-Norman identity.",
+        "f1": 0.0197,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 518,
+        "latency_ms": 6116,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3251,12 +3251,12 @@
           "Catholic orthodoxy",
           "Catholic"
         ],
-        "prediction": "",
-        "f1": 0.0021,
+        "prediction": "Based on the provided context, the Normans adopted **Catholicism (Christianity)**.\n\nKey points from the text include:\n*   They became \"exponents of the Catholic orthodoxy into which they assimilated\" [1].\n*   The descendants of Rollo's Vikings replaced the Norse religion with Catholicism after settling in Normandy [10].\n*   Their religious zeal was significant, leading them to participate in religious wars and crusades long before the First Crusade [5].\n*   During church reform in the early 11th century, they utilized the church as a unifying force for their duchy [3].\n\nSources: [1], [2], [5], [10]",
+        "f1": 0.044,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 525,
+        "latency_ms": 4311,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3287,12 +3287,12 @@
           "Norseman, Viking",
           "Norseman, Viking"
         ],
-        "prediction": "",
-        "f1": 0.0011,
+        "prediction": "Based on the provided text, the word \"Norman\" originally comes from the Norse word for **\"Norseman\"** [1]. The term was used to describe the people who gave their name to Normandy in the 10th and 11th centuries; these individuals were descended from raiders and pirates originating from Denmark, Iceland, and Norway.",
+        "f1": 0.0377,
         "em": 0.0,
         "hit": 0.0,
         "confidence": "high",
-        "latency_ms": 531,
+        "latency_ms": 2726,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3323,12 +3323,12 @@
           "9th century",
           "9th century"
         ],
-        "prediction": "",
-        "f1": 0.0023,
+        "prediction": "Based on the provided text, the Latinized versions of the word \"Norman\" (such as *Nortmannus*, *Normannus*, or *Nordmannus*) were **recorded in Medieval Latin during the 9th century**. [1]",
+        "f1": 0.1333,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 585,
+        "latency_ms": 2744,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3359,12 +3359,12 @@
           "911",
           "911"
         ],
-        "prediction": "",
-        "f1": 0.001,
+        "prediction": "The Duchy of Normandy was established in **911** through the Treaty of Saint-Clair-sur-Epte between King Charles III of West Francia and the Viking ruler Rollo [1].",
+        "f1": 0.0741,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 475,
+        "latency_ms": 2164,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3395,12 +3395,12 @@
           "King Charles III",
           "King Charles III"
         ],
-        "prediction": "",
-        "f1": 0.0155,
+        "prediction": "Rollo signed the Treaty of Saint-Clair-sur-Epte with **King Charles III of West Francia** (also known as Charles the Simple). The source text states that the Duchy of Normandy was established by this treaty between \"King Charles III of West Francia and the famed Viking ruler Rollo\" [1].",
+        "f1": 0.12,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 476,
+        "latency_ms": 2035,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3431,12 +3431,12 @@
           "Epte",
           "Seine"
         ],
-        "prediction": "",
-        "f1": 0.0099,
+        "prediction": "Based on the provided text, the Duchy of Normandy was originally established by the treaty of Saint-Clair-sur-Epte between King Charles III and Rollo. The territory offered to them lay **between the river Epte** and the Atlantic coast [1]. Therefore, the river that originally bounded the duchy (on its eastern side) is the **Epte**.",
+        "f1": 0.037,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "low",
-        "latency_ms": 524,
+        "latency_ms": 2061,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3467,12 +3467,12 @@
           "Rollo",
           "Rollo"
         ],
-        "prediction": "",
-        "f1": 0.0039,
+        "prediction": "Based on the provided text, **Rollo** is identified as the leader under whom the Viking contingents arrived in Normandy and settled there [1]. The text states that \"Rollo's contingents who raided and ultimately settled Normandy... included Danes, Norwegians, Norse\u2013Gaels...\" and implies his leadership role by referring to them collectively as \"**Rollo's Vikings**\" whose descendants formed the Norman culture [1], and explicitly noting they agreed to swear fealty under him in the third paragraph [3]. While the text does not use the specific phrase \"gave a common identity,\" it attributes their collective arrival, settlement, and subsequent cultural synthesis (replacing Norse religion with Catholicism) to his leadership.\n\nAnswer: **Rollo**",
+        "f1": 0.0185,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 506,
+        "latency_ms": 3485,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3503,12 +3503,12 @@
           "Catholicism",
           "Catholicism"
         ],
-        "prediction": "",
-        "f1": 0.0011,
+        "prediction": "Based on the provided text, the Normans adopted **Catholicism (Christianity)** as their religion.\n\nKey points regarding their religious identity include:\n*   They replaced Norse paganism with Catholicism after settling in Normandy [1].\n*   They became \"exponents of the Catholic orthodoxy into which they assimilated\" and were noted for their \"legendary religious zeal\" [2], [5].\n*   The church was utilized by Norman dukes as a unifying force, leading to a renaissance in monasteries such as Mont-Saint-Michel and Bec [4].\n*   Their conversion involved adopting the Gallo-Romance language of the local Frankish population alongside their new faith [1], [10].",
+        "f1": 0.0213,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 496,
+        "latency_ms": 4621,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3539,12 +3539,12 @@
           "the north",
           "north"
         ],
-        "prediction": "",
-        "f1": 0.002,
+        "prediction": "Based on the provided text, the Normans were located in **Normandy**, a region in northern France. Specifically:\n\n*   The territory was situated between the river **Epte** and the **Atlantic coast**.\n*   It corresponded to the **northern part of present-day Upper Normandy** down to the river **Seine**.\n*   While it began as roughly equivalent to the old province of Rouen, the Duchy eventually extended west beyond the Seine [2].\n\nThe text also notes that before Rollo's arrival, this area (along with Picardy and \u00cele-de-France) was considered \"Frankish\" [9], but after the establishment of the Duchy in 911, it became a distinct region known as Normandy [1][2].",
+        "f1": 0.0192,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 550,
+        "latency_ms": 4791,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3575,12 +3575,12 @@
           "fighting horsemen",
           "fighting horsemen"
         ],
-        "prediction": "",
-        "f1": 0.0023,
+        "prediction": "Based on the provided text, one of the Normans' major exports was **fighting horsemen** (or fighting men/military mercenaries).\n\nThe text states that \"by 1066 Normandy had been exporting fighting horsemen for more than a generation\" [2]. Additionally, it notes that Norman adventurers and mercenaries were prominent in founding new kingdoms like Sicily and Antioch, as well as serving in the Byzantine Empire and on the Crusades [1], [2], [7].",
+        "f1": 0.0563,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 518,
+        "latency_ms": 2724,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3611,12 +3611,12 @@
           "the Pechenegs, the Bulgars, and especially the Seljuk Turks",
           "the Seljuk Turks"
         ],
-        "prediction": "",
-        "f1": 0.01,
+        "prediction": "Based on the provided text, the Normans did not have a single \"main\" enemy that applied uniformly to both Italy and Armenia; rather, their enemies varied by region and specific campaign. However, the text identifies several key adversaries:\n\n*   **In Southern Italy:** The primary enemy was the **Byzantine Empire**. The text states that Robert Guiscard drove the Byzantines out of southern Italy [1]. Later, in 1085, the Normans lost Dyrrachium (in the Balkan context provided) and other territories after the death of Robert, indicating ongoing conflict with Byzantine forces [4].\n*   **In Armenia:** The text mentions that Normans fought against the **Pechenegs**, the **Bulgars**, and especially the **Seljuk Turks** in the region [3]. Specifically regarding Armenia, it notes that some Normans joined Turkish forces to aid in the destruction of the **Armenian vassal-states of Sassoun and Taron** [2], implying these states were their adversaries at that time.\n*   **General Context:** The text also mentions fighting against the **Lombards**, who encouraged Normans to come south initially, though they later fought in Byzantine service [3].\n\nTherefore, while the **Byzantine Empire** was the dominant power they displaced in Italy, their enemies in Armenia included local vassal states (like Sassoun and Taron) as well as external powers like the Seljuk Turks.",
+        "f1": 0.0845,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 501,
+        "latency_ms": 6442,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3647,12 +3647,12 @@
           "in the 1050s",
           "in the 1050s"
         ],
-        "prediction": "",
-        "f1": 0.0275,
+        "prediction": "Based on the provided text, Herv\u00e9 served as a Byzantine general in the **1050s**. [1]",
+        "f1": 0.3333,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 533,
+        "latency_ms": 1436,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3683,12 +3683,12 @@
           "In the 1060s",
           "In the 1060s"
         ],
-        "prediction": "",
-        "f1": 0.0132,
+        "prediction": "Based on the provided text, Robert Crispin led the Normans of Edessa against the Turks in the **1060s**. [1]",
+        "f1": 0.2727,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 517,
+        "latency_ms": 1368,
         "legs": {
           "dense": {
             "status": "ok",
@@ -3722,12 +3722,12 @@
           "France",
           "France"
         ],
-        "prediction": "",
-        "f1": 0.0012,
+        "prediction": "Based on the provided context, Normandy is located in **France**.\n\nThe text states that Normandy is \"a region in France\" [2] and describes it as a fiefdom established by King Charles III of West Francia (the French kingdom) [1]. Additionally, it mentions that Norman customary law survives today through the legal systems of Jersey and Guernsey in the Channel Islands, which are part of the United Kingdom but historically linked to the Duchy of Normandy within France.",
+        "f1": 0.0256,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 441,
+        "latency_ms": 3219,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -3759,12 +3759,12 @@
           "10th and 11th centuries",
           "10th and 11th centuries"
         ],
-        "prediction": "",
-        "f1": 0.0065,
+        "prediction": "Based on the provided context, the Normans were present in Normandy starting from the **10th and 11th centuries**.\n\nSpecifically:\n*   They gave their name to the region during this period [1].\n*   Their distinct cultural and ethnic identity emerged initially in the first half of the 10th century, evolving over succeeding centuries [1].\n*   By **1066**, they had established a functional feudal hierarchical system within Normandy [4].\n*   Under **Richard I of Normandy** (who reigned later in this period), the Duchy was forged into a cohesive and formidable principality [5].\n\nThe text does not specify an exact end date for their presence, but notes that by the mid-12th century (specifically 1169), Norman descendants had settled in Ireland, implying they were still active or influential in related regions during that time.",
+        "f1": 0.0909,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 396,
+        "latency_ms": 4913,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -3796,12 +3796,12 @@
           "Denmark, Iceland and Norway",
           "Denmark, Iceland and Norway"
         ],
-        "prediction": "",
-        "f1": 0.0159,
+        "prediction": "Based on the provided text, the Norse originated from **Denmark**, **Iceland**, and **Norway**. The text also mentions \"Norse\u2013Gaels\" and \"Anglo-Danes,\" but explicitly identifies Denmark, Iceland, and Norway as the primary sources for the raiders and pirates who gave their name to Normandy [1].",
+        "f1": 0.1702,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 425,
+        "latency_ms": 2114,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -3833,12 +3833,12 @@
           "Rollo",
           "Rollo"
         ],
-        "prediction": "",
-        "f1": 0.0063,
+        "prediction": "Based on the provided context, the Norse leader was **Rollo**. He led the Viking raiders and pirates who agreed to swear fealty to King Charles III of West Francia in exchange for establishing the Duchy of Normandy [1][2].",
+        "f1": 0.0513,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "medium",
-        "latency_ms": 413,
+        "latency_ms": 1478,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -3870,12 +3870,12 @@
           "10th",
           "10th"
         ],
-        "prediction": "",
-        "f1": 0.007,
+        "prediction": "Based on the provided text, the distinct cultural and ethnic identity of the Normans emerged initially in the **first half of the 10th century**.\n\nSource [1] states: \"The distinct cultural and ethnic identity of the Normans emerged initially in the first half of the 10th century...\"",
+        "f1": 0.2642,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 488,
+        "latency_ms": 2559,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -3906,12 +3906,12 @@
           "William the Conqueror",
           "William the Conqueror"
         ],
-        "prediction": "",
-        "f1": 0.0142,
+        "prediction": "Based on the provided context, **William II** (also referred to as **Duke William**) of Normandy was the leader who conquered England at the Battle of Hastings in 1066. The text states that he killed King Harold II during this battle [1]. Additionally, the second source mentions an expedition led by \"their duke, William the Conqueror,\" which resulted in the Norman conquest of England at the same battle [2].\n\n*Note: While historical records typically identify him as William I (William the Conqueror), the provided text refers to him as Duke William II.*",
+        "f1": 0.0638,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 468,
+        "latency_ms": 2898,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -3942,12 +3942,12 @@
           "Richard I",
           "Richard I"
         ],
-        "prediction": "",
-        "f1": 0.0021,
+        "prediction": "Based on the provided context, the Duchy of Normandy was established in 911 as a fiefdom through the Treaty of Saint-Clair-sur-Epte between King Charles III of West Francia and the Viking ruler **Rollo** [1]. While Rollo is identified as its founder, the text does not provide specific names for all subsequent rulers of the duchy.\n\nHowever, the context does mention several individuals associated with ruling or holding power in Normandy:\n*   **William II (Duke William):** He conquered England at the Battle of Hastings in 1066 [3].\n*   **Richard I:** Under his rule, the Duchy was forged into a cohesive and formidable principality [4].\n*   **Richard II:** His sister Emma married King Ethelred II of England [6].\n*   **Robert Guiscard:** He patronized monks who fled from Saint-Evroul Abbey to establish a monastery in southern Italy, implying his influence or rule over Norman territories there [9].\n*   **William the Lion:** A Scottish king under whom the Norman-derived feudal system was applied intensely in Scotland [10].\n\nThe text generally refers to them collectively as \"Norman kings of England\" (who were also Dukes of Normandy) and \"the new Norman rulers,\" noting that they owed homage to the King of France for their lands on the continent [3], [5].",
+        "f1": 0.0199,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 414,
+        "latency_ms": 6209,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -3978,12 +3978,12 @@
           "Catholic orthodoxy",
           "Catholic"
         ],
-        "prediction": "",
-        "f1": 0.0021,
+        "prediction": "Based on the provided context, the Normans became **Christian** and specifically adhered to **Catholic orthodoxy**.\n\nThe text states that they were \"famed for their martial spirit and eventually for their Christian piety\" and became \"exponents of the Catholic orthodoxy into which they assimilated.\" This religious conversion was a key part of their cultural evolution after swearing fealty to King Charles III of West Francia in the 10th century.\n\nSources: [1], [2]",
+        "f1": 0.0548,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 451,
+        "latency_ms": 3248,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -4014,12 +4014,12 @@
           "Norseman, Viking",
           "Norseman, Viking"
         ],
-        "prediction": "",
-        "f1": 0.001,
+        "prediction": "Based on the provided context, the word **Norman** originally refers to a dialect derived from the **Gallo-Romance language** spoken by the Frankish land that the Normans settled [2]. The text explicitly states: \"They adopted the Gallo-Romance language of the Frankish land they settled, their dialect becoming known as Norman, Normaund or Norman French\" [2].\n\nWhile the context mentions that names beginning with \"Fitz\" (from the Norman for son) indicate Norman ancestry and notes that Normans were originally Vikings who settled in France, it does not provide a specific etymological breakdown of the word \"Norman\" itself beyond its association with this dialect.",
+        "f1": 0.0,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 468,
+        "latency_ms": 4092,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -4050,12 +4050,12 @@
           "9th century",
           "9th century"
         ],
-        "prediction": "",
-        "f1": 0.002,
+        "prediction": "Based on the provided text, the Latinized versions of the word \"Norman\" (such as *Nortmannus*, *Normannus*, or *Nordmannus*) were **recorded in Medieval Latin during the 9th century**. [1]",
+        "f1": 0.1333,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 431,
+        "latency_ms": 2446,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -4086,12 +4086,12 @@
           "911",
           "911"
         ],
-        "prediction": "",
-        "f1": 0.001,
+        "prediction": "The Duchy of Normandy was established in **911** through the Treaty of Saint-Clair-sur-Epte between King Charles III of West Francia and the Viking ruler Rollo [1].",
+        "f1": 0.0741,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 399,
+        "latency_ms": 1407,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -4122,12 +4122,12 @@
           "King Charles III",
           "King Charles III"
         ],
-        "prediction": "",
+        "prediction": "Based on the provided context, there is no mention of who Rollo signed the Treaty of Saint-Clair-sur-Epte with. The text only describes his arrival, the composition of his contingents (Danes, Norwegians, Norse\u2013Gaels, etc.), and the cultural synthesis that followed [1].",
         "f1": 0.0,
         "em": 0.0,
         "hit": 0.0,
         "confidence": "low",
-        "latency_ms": 396,
+        "latency_ms": 1818,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -4158,12 +4158,12 @@
           "Epte",
           "Seine"
         ],
-        "prediction": "",
-        "f1": 0.0099,
+        "prediction": "Based on the provided text, the Duchy of Normandy was originally established by the treaty of Saint-Clair-sur-Epte between King Charles III and Rollo. The territory offered to them lay **between the river Epte** and the Atlantic coast [1]. Therefore, the river that originally bounded the duchy (on its eastern side) is the **Epte**.",
+        "f1": 0.037,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "low",
-        "latency_ms": 390,
+        "latency_ms": 1923,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -4194,12 +4194,12 @@
           "Rollo",
           "Rollo"
         ],
-        "prediction": "",
-        "f1": 0.0039,
+        "prediction": "Based on the provided text, **Rollo** is identified as the leader under whom the Viking contingents arrived in Normandy and settled there [1]. The text states that \"Rollo's contingents who raided and ultimately settled Normandy... included Danes, Norwegians, Norse\u2013Gaels...\" and implies his leadership role by referring to them collectively as \"**Rollo's Vikings**\" whose descendants formed the Norman culture [1], and explicitly noting they agreed to swear fealty under **their leader Rollo** [3].\n\nWhile the text mentions that earlier Viking settlers in the 880s were divided between different colonies (east and west) separated by traditional regions, it attributes the specific formation of a unified group (\"Rollo's Vikings\") who settled Normandy and eventually gave their name to the region under his leadership.\n\n**Answer:** Rollo",
+        "f1": 0.0163,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 400,
+        "latency_ms": 3926,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -4230,12 +4230,12 @@
           "Catholicism",
           "Catholicism"
         ],
-        "prediction": "",
+        "prediction": "Based on the provided text, there is no specific \"Norman religion\" distinct from Christianity; rather, the Normans were **exponents of Catholic orthodoxy** who assimilated into the Christian faith [2].\n\nKey points regarding their religious practices and influence include:\n*   **Christian Piety:** The Normans became known for their martial spirit combined with significant Christian piety [2].\n*   **Church Reform:** In early 11th-century Normandy, dukes initiated a program of church reform, encouraging the Cluniac reform of monasteries and patronizing intellectual pursuits within religious institutions like scriptoria [4].\n*   **Religious Zeal:** They were described as having \"legendary religious zeal,\" which was exercised in religious wars long before the First Crusade [5].\n*   **Crusading:** Many Normans served as avid Crusaders, participating in campaigns in the Near East (founding Antioch), Iberia (the Reconquista), and other regions under various flags [2][5][7].\n*   **Destruction of Objects:** During later periods, specifically the French Revolution, religious objects were purposefully destroyed due to an assault on religion [3].\n\nSources: [1], [2], [4], [5]",
         "f1": 0.0,
         "em": 0.0,
         "hit": 0.0,
         "confidence": "high",
-        "latency_ms": 403,
+        "latency_ms": 6188,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -4266,12 +4266,12 @@
           "the north",
           "north"
         ],
-        "prediction": "",
-        "f1": 0.0021,
+        "prediction": "Based on the provided text, the Normans were located in **Normandy**, a region in northern France. Specifically:\n\n*   The treaty of Saint-Clair-sur-Epte established the Duchy of Normandy with lands situated between the river Epte and the Atlantic coast [2].\n*   This territory corresponded to the **northern part of present-day Upper Normandy** down to the river Seine, though the Duchy eventually extended west beyond the Seine [2].\n*   The area was roughly equivalent to the old province of Rouen and reproduced the Roman administrative structure of Gallia Lugdunensis II [2].",
+        "f1": 0.0227,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 432,
+        "latency_ms": 4136,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -4302,12 +4302,12 @@
           "fighting horsemen",
           "fighting horsemen"
         ],
-        "prediction": "",
-        "f1": 0.0022,
+        "prediction": "Based on the provided text, one of the Normans' major exports was **fighting horsemen** (or fighting men/knights).\n\nThe document states that by 1066, \"Normandy had been exporting fighting horsemen for more than a generation\" because many Norman knights remained poor and land-hungry [2]. Additionally, they were noted as being \"famed for their martial spirit\" and having significant military accomplishments and innovations [1], which contributed to their reputation as mercenaries who served in various regions including the Byzantine Empire, Sicily, and the Crusader states [2][6].",
+        "f1": 0.0465,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 422,
+        "latency_ms": 3691,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -4338,12 +4338,12 @@
           "the Pechenegs, the Bulgars, and especially the Seljuk Turks",
           "the Seljuk Turks"
         ],
-        "prediction": "",
-        "f1": 0.0114,
+        "prediction": "Based on the provided text, the Normans did not have a single \"main\" enemy that applied uniformly to both Italy and Armenia; rather, their enemies varied by region and specific campaign. However, the text identifies several key adversaries:\n\n*   **In Southern Italy:** The primary enemies were the **Byzantines** (who drove them out) and the **Saracens**.\n    *   Source [1]: \"...Norman adventurer... ultimately drove the Byzantines out of southern Italy.\"\n    *   Source [7]: \"...conquering southern Italy on the Saracens and Byzantines...\"\n\n*   **In Armenia and Anatolia (Asia Minor):** The Normans fought against various groups including the **Turks** (specifically Seljuk Turks), **Armenians**, and local populations.\n    *   Source [2]: \"Robert Crispin led the Normans of Edessa against the Turks.\"\n    *   Source [3]: \"...fighting against the Pechenegs, the Bulgars, and especially the Seljuk Turks.\"\n    *   Source [2]: \"Some Normans joined Turkish forces to aid in the destruction of the Armenians vassal-states...\" (indicating Armenians were a target or ally depending on the faction).\n\n*   **In Albania:** The main adversaries were the **Byzantines** and local **Albanian forces**.\n    *   Source [1]: \"...locals accepted the call of emperor Alexius I Comnenus to join forces with the Byzantines against the Normans.\"\n\nTherefore, while the **Byzantine Empire** was a consistent adversary across both Italy and the Balkans/Armenia region, in Armenia specifically, they also faced significant opposition from **Turks**, **Pechenegs**, **Bulgars**, and various **Armenian vassal-states**.",
+        "f1": 0.0807,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 455,
+        "latency_ms": 7835,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -4374,12 +4374,12 @@
           "in the 1050s",
           "in the 1050s"
         ],
-        "prediction": "",
-        "f1": 0.0275,
+        "prediction": "Based on the provided text, Herv\u00e9 served as a Byzantine general in the **1050s**. [1]",
+        "f1": 0.3333,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 435,
+        "latency_ms": 1133,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -4410,12 +4410,12 @@
           "In the 1060s",
           "In the 1060s"
         ],
-        "prediction": "",
-        "f1": 0.0132,
+        "prediction": "Based on the provided text, Robert Crispin led the Normans of Edessa against the Turks in the **1060s**. [1]",
+        "f1": 0.2727,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 475,
+        "latency_ms": 1266,
         "legs": {
           "dense": {
             "status": "disabled",
@@ -4449,12 +4449,12 @@
           "France",
           "France"
         ],
-        "prediction": "",
-        "f1": 0.0012,
+        "prediction": "Based on the provided context, Normandy is located in **France**.\n\nThe text states that Normandy is \"a region in France\" [2] and describes it as a fiefdom established by King Charles III of West Francia (the French kingdom) [1]. Additionally, it mentions that Norman customary law survives today through the legal systems of Jersey and Guernsey in the Channel Islands, which are part of the United Kingdom but historically linked to the Duchy of Normandy within France.",
+        "f1": 0.0256,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 551,
+        "latency_ms": 2587,
         "legs": {
           "dense": {
             "status": "ok",
@@ -4486,12 +4486,12 @@
           "10th and 11th centuries",
           "10th and 11th centuries"
         ],
-        "prediction": "",
-        "f1": 0.0061,
+        "prediction": "Based on the provided context, the Normans were present in Normandy starting from the **10th century** (specifically beginning with the establishment of the Duchy in 911) and continued to exist there for several centuries, evolving into a distinct culture that eventually merged with the native Frankish population.\n\nKey details regarding their presence include:\n*   **Establishment:** The Duchy of Normandy was established as a fiefdom in **911** through the Treaty of Saint-Clair-sur-Epte between King Charles III of West Francia and Viking ruler Rollo [5].\n*   **Timeline:** They gave their name to the region during the **10th and 11th centuries**, though their distinct cultural identity emerged initially in the first half of the 10th century and continued to evolve over succeeding centuries [1].\n*   **Duration:** The text notes that by the time Edward the Confessor returned from his refuge in **1041**, he brought a \"Norman-educated mind,\" indicating their established presence. Later, during the Hundred Years' War (which occurred after the 12th century), the Norman aristocracy often identified themselves as English [3]. The Normans remained a significant political and cultural force in medieval France until they were eventually absorbed or assimilated into the broader French culture over time [6], [8].",
+        "f1": 0.06,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 586,
+        "latency_ms": 6999,
         "legs": {
           "dense": {
             "status": "ok",
@@ -4523,12 +4523,12 @@
           "Denmark, Iceland and Norway",
           "Denmark, Iceland and Norway"
         ],
-        "prediction": "",
-        "f1": 0.0111,
+        "prediction": "Based on the provided text, the Norse originated from **Denmark**, **Iceland**, and **Norway**. The text explicitly states that the Normans were descended from \"Norse ('Norman' comes from 'Norseman') raiders and pirates from Denmark, Iceland and Norway\" [1]. Additionally, it notes that Rollo's contingents included Danes, Norwegians, Norse\u2013Gaels, Orkney Vikings, possibly Swedes, and Anglo-Danes [3], though the primary countries of origin for the initial group are identified as Denmark, Iceland, and Norway.",
+        "f1": 0.1067,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 537,
+        "latency_ms": 3122,
         "legs": {
           "dense": {
             "status": "ok",
@@ -4560,12 +4560,12 @@
           "Rollo",
           "Rollo"
         ],
-        "prediction": "",
-        "f1": 0.0063,
+        "prediction": "Based on the provided context, the Norse leader was **Rollo**. He led the Viking raiders and pirates who agreed to swear fealty to King Charles III of West Francia in exchange for establishing the Duchy of Normandy [1][2].",
+        "f1": 0.0513,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "medium",
-        "latency_ms": 532,
+        "latency_ms": 1663,
         "legs": {
           "dense": {
             "status": "ok",
@@ -4597,12 +4597,12 @@
           "10th",
           "10th"
         ],
-        "prediction": "",
-        "f1": 0.0071,
+        "prediction": "Based on the provided text, the distinct cultural and ethnic identity of the Normans emerged initially in the **first half of the 10th century**.\n\nSource [1] states: \"The distinct cultural and ethnic identity of the Normans emerged initially in the first half of the 10th century...\"",
+        "f1": 0.2642,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 554,
+        "latency_ms": 2594,
         "legs": {
           "dense": {
             "status": "ok",
@@ -4633,12 +4633,12 @@
           "William the Conqueror",
           "William the Conqueror"
         ],
-        "prediction": "",
-        "f1": 0.0142,
+        "prediction": "Based on the provided context, **William II** (also referred to as **Duke William**) of Normandy was the leader who conquered England at the Battle of Hastings in 1066. The text states that he killed King Harold II during this battle [1]. Additionally, the second source mentions an expedition led by \"their duke, William the Conqueror,\" which resulted in the Norman conquest of England at the same event [2].\n\n*Note: While historical records typically identify him as William I (William the Conqueror), the provided text refers to him as Duke William II.*",
+        "f1": 0.0638,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 547,
+        "latency_ms": 2889,
         "legs": {
           "dense": {
             "status": "ok",
@@ -4669,12 +4669,12 @@
           "Richard I",
           "Richard I"
         ],
-        "prediction": "",
-        "f1": 0.0022,
+        "prediction": "Based on the provided context, the Duchy of Normandy was established in 911 as a fiefdom under the rule of **Rollo** (also referred to as Rollo the Viking), who became its first Duke. The treaty establishing the duchy was signed between King Charles III of West Francia and Rollo [1].\n\nThe text further notes that the Normans eventually merged with native populations, leading to a period where the \"Norman aristocracy often identified themselves as English\" during the Hundred Years' War [3]. It also mentions specific individuals associated with the region's leadership or influence:\n*   **William II (William the Conqueror):** Duke of Normandy who conquered England in 1066 [3], [4].\n*   **Richard I:** Under whose rule the Duchy was forged into a cohesive principality [4].\n*   **Duke Richard II:** Whose sister Emma married King Ethelred II of England, creating ties between Normandy and England [6].\n*   **King David I of Scotland:** Who introduced Norman culture to Scotland through his marriage to Sybilla of Normandy (though this relates to Scotland rather than the direct rule of the Duchy itself) [9].\n\nThe context does not provide a complete list of every duke who ruled throughout history, but it confirms Rollo as the founder and highlights William the Conqueror and Richard I as significant rulers.",
+        "f1": 0.0191,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 548,
+        "latency_ms": 6623,
         "legs": {
           "dense": {
             "status": "ok",
@@ -4705,12 +4705,12 @@
           "Catholic orthodoxy",
           "Catholic"
         ],
-        "prediction": "",
-        "f1": 0.0021,
+        "prediction": "Based on the provided context, the Normans adopted **Catholicism** (Christianity).\n\nKey points from the text include:\n*   They replaced the Norse religion with Catholicism after settling in Normandy [2].\n*   They became \"exponents of the Catholic orthodoxy into which they assimilated\" and were noted for their \"Christian piety\" [1].\n*   The descendants of Rollo's Vikings and Frankish wives specifically replaced the Norse religion with Catholicism [10].\n*   During the French Revolution, religious objects were destroyed because of an assault on **religion**, implying its central role in Norman society [4].",
+        "f1": 0.046,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 503,
+        "latency_ms": 3909,
         "legs": {
           "dense": {
             "status": "ok",
@@ -4741,12 +4741,12 @@
           "Norseman, Viking",
           "Norseman, Viking"
         ],
-        "prediction": "",
-        "f1": 0.002,
+        "prediction": "Based on the provided text, the word \"Norman\" originally comes from the Norse word for **\"Norseman.\"** The term was used to describe the people who gave their name to Normandy in the 10th and 11th centuries; they were descended from Norse raiders and pirates from Denmark, Iceland, and Norway [1].",
+        "f1": 0.0385,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 570,
+        "latency_ms": 2291,
         "legs": {
           "dense": {
             "status": "ok",
@@ -4777,12 +4777,12 @@
           "9th century",
           "9th century"
         ],
-        "prediction": "",
-        "f1": 0.002,
+        "prediction": "Based on the provided text, the Latinized versions of the word \"Norman\" (such as *Nortmannus*, *Normannus*, or *Nordmannus*) were **recorded in Medieval Latin during the 9th century**. [1]",
+        "f1": 0.1333,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 564,
+        "latency_ms": 2235,
         "legs": {
           "dense": {
             "status": "ok",
@@ -4813,12 +4813,12 @@
           "911",
           "911"
         ],
-        "prediction": "",
-        "f1": 0.001,
+        "prediction": "The Duchy of Normandy was established in **911** through the Treaty of Saint-Clair-sur-Epte between King Charles III of West Francia and the Viking ruler Rollo [1].",
+        "f1": 0.0741,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 493,
+        "latency_ms": 1452,
         "legs": {
           "dense": {
             "status": "ok",
@@ -4849,12 +4849,12 @@
           "King Charles III",
           "King Charles III"
         ],
-        "prediction": "",
+        "prediction": "Based on the provided context, there is no mention of who Rollo signed the Treaty of Saint-Clair-sur-Epte with. The text only describes his arrival, the composition of his contingent (Danes, Norwegians, Norse\u2013Gaels, etc.), and the cultural synthesis that followed [1].",
         "f1": 0.0,
         "em": 0.0,
         "hit": 0.0,
         "confidence": "low",
-        "latency_ms": 515,
+        "latency_ms": 1847,
         "legs": {
           "dense": {
             "status": "ok",
@@ -4885,12 +4885,12 @@
           "Epte",
           "Seine"
         ],
-        "prediction": "",
-        "f1": 0.0099,
+        "prediction": "Based on the provided text, the Duchy of Normandy was originally established by the treaty of Saint-Clair-sur-Epte between King Charles III and Rollo. The territory offered to them lay **between the river Epte** and the Atlantic coast [1]. Therefore, the river that originally bounded the duchy (on its eastern side) is the **Epte**.",
+        "f1": 0.037,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "low",
-        "latency_ms": 518,
+        "latency_ms": 2011,
         "legs": {
           "dense": {
             "status": "ok",
@@ -4921,12 +4921,12 @@
           "Rollo",
           "Rollo"
         ],
-        "prediction": "",
-        "f1": 0.0039,
+        "prediction": "Based on the provided text, **Rollo** is identified as the leader under whom the Viking contingents arrived in Normandy and settled there [1]. The text states that \"Rollo's contingents who raided and ultimately settled Normandy... included Danes, Norwegians, Norse\u2013Gaels...\" and implies his leadership role by referring to them collectively as \"**Rollo's Vikings**\" whose descendants formed the Norman culture [1], and explicitly noting they agreed to swear fealty under **their leader Rollo** [3].\n\nWhile the text mentions that earlier settlers in the 880s were divided between different colonies (east and west) separated by traditional regions, it attributes the specific formation of a unified group (\"Rollo's Vikings\") who settled Normandy and eventually created a distinct \"Norman\" identity to Rollo's leadership [1], [3].\n\n**Answer:** **Rollo**",
+        "f1": 0.0163,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 507,
+        "latency_ms": 4126,
         "legs": {
           "dense": {
             "status": "ok",
@@ -4957,12 +4957,12 @@
           "Catholicism",
           "Catholicism"
         ],
-        "prediction": "",
-        "f1": 0.0011,
+        "prediction": "Based on the provided text, the Normans adopted **Catholicism (Christianity)** as their religion.\n\nKey points regarding their religious identity include:\n*   They replaced the Norse religion and Old Norse language with Catholicism after settling in Normandy [1].\n*   The Normans became \"exponents of the Catholic orthodoxy into which they assimilated\" [2].\n*   During the French Revolution, the destruction of Norman art included the \"purposeful destruction of religious objects,\" indicating their strong adherence to religion at that time [3].\n*   They utilized the church as a unifying force for their duchy and engaged in church reform (specifically the Cluniac reform) starting in the early 11th century [4].",
+        "f1": 0.0194,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 499,
+        "latency_ms": 4251,
         "legs": {
           "dense": {
             "status": "ok",
@@ -4993,12 +4993,12 @@
           "the north",
           "north"
         ],
-        "prediction": "",
-        "f1": 0.002,
+        "prediction": "Based on the provided context, the Normans were located in **Normandy**, a region in northern France. Specifically:\n\n*   The territory was situated between the river **Epte** and the **Atlantic coast**.\n*   It corresponded to the **northern part of present-day Upper Normandy** down to the river **Seine**.\n*   While it began as roughly equivalent to the old province of Rouen, the Duchy eventually extended west beyond the Seine [2].\n\nThe area was originally in the former Frankish kingdom of **Neustria** and reproduced the Roman administrative structure of **Gallia Lugdunensis II** [2].",
+        "f1": 0.0225,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "very_high",
-        "latency_ms": 571,
+        "latency_ms": 4348,
         "legs": {
           "dense": {
             "status": "ok",
@@ -5029,12 +5029,12 @@
           "fighting horsemen",
           "fighting horsemen"
         ],
-        "prediction": "",
-        "f1": 0.0023,
+        "prediction": "Based on the provided text, one of the Normans' major exports was **fighting horsemen** (or fighting men/military mercenaries).\n\nThe text states that \"by 1066 Normandy had been exporting fighting horsemen for more than a generation\" [2]. Additionally, it notes that Norman adventurers and mercenaries were prominent in founding new kingdoms like Sicily and Antioch, as well as serving in the Byzantine Empire and on the Crusades [1], [2], [7].",
+        "f1": 0.0563,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 537,
+        "latency_ms": 3350,
         "legs": {
           "dense": {
             "status": "ok",
@@ -5065,12 +5065,12 @@
           "the Pechenegs, the Bulgars, and especially the Seljuk Turks",
           "the Seljuk Turks"
         ],
-        "prediction": "",
-        "f1": 0.01,
+        "prediction": "Based on the provided text, the Normans did not have a single \"main\" enemy that applied uniformly to both Italy and Armenia; rather, their enemies varied by region and specific campaign. However, the text identifies several key adversaries:\n\n*   **In Southern Italy:** The primary enemy was the **Byzantine Empire**. The text states that Robert Guiscard drove the Byzantines out of southern Italy [1]. Later, under Bohemond (Robert's son), the Normans besieged Dyrrachium and fought against Byzantine resistance in Albania, eventually signing a peace treaty with them due to lack of supplies and disease [5].\n*   **In Armenia:** The text mentions that Normans served as mercenaries fighting against various groups including the **Pechenegs**, the **Bulgars**, and especially the **Seljuk Turks** [3]. Specifically regarding Armenia, it notes that some Normans joined Turkish forces to aid in the destruction of the **Armenian vassal-states of Sassoun and Taron** [2], implying these states were their adversaries at that time. Later, they served under Armenian generals like Philaretus Brachamius against these same Turks [2].\n*   **In Asia Minor (related to Armenia):** The text notes that Norman mercenaries sometimes tried to carve out independent states or fight alongside locals against the Byzantines themselves (e.g., Roussel de Bailleul was stopped by Alexius Komnenos) [2], indicating the **Byzantine Empire** was also a significant power they interacted with in this region.\n\nTherefore, while the **Byzantine Empire** was the dominant enemy in Italy and a major power in Asia Minor, their enemies in Armenia included local **Armenian vassal-states (Sassoun and Taron)** as well as external threats like the **Seljuk Turks**, Pechenegs, and Bulgars.\n\nSources: [1], [2], [3], [5]",
+        "f1": 0.0659,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 550,
+        "latency_ms": 8328,
         "legs": {
           "dense": {
             "status": "ok",
@@ -5101,12 +5101,12 @@
           "in the 1050s",
           "in the 1050s"
         ],
-        "prediction": "",
-        "f1": 0.0275,
+        "prediction": "Based on the provided text, Herv\u00e9 served as a Byzantine general in the **1050s**. [1]",
+        "f1": 0.3333,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 522,
+        "latency_ms": 1221,
         "legs": {
           "dense": {
             "status": "ok",
@@ -5137,12 +5137,12 @@
           "In the 1060s",
           "In the 1060s"
         ],
-        "prediction": "",
-        "f1": 0.0132,
+        "prediction": "Based on the provided text, Robert Crispin led the Normans of Edessa against the Turks in the **1060s**. [1]",
+        "f1": 0.2727,
         "em": 0.0,
         "hit": 1.0,
         "confidence": "high",
-        "latency_ms": 532,
+        "latency_ms": 1327,
         "legs": {
           "dense": {
             "status": "ok",

@@ -3,25 +3,25 @@ Neo4j knowledge graph service.
 
 Architecture
 ------------
-Neo4j is used exclusively for entity/relationship storage and graph-context
-enrichment. It is NOT used for vector search — Qdrant owns all vector search.
+Neo4j stores entities and relationships only — zero vectors.
+Qdrant owns all vector search.
 
 Ingestion (build_graph_for_document):
   1. Write Chunk nodes keyed by (document_id, chunk_index) — the same
      identifiers stored in every Qdrant point payload.
-  2. Use SimpleKGPipeline to extract Entity nodes and relationships from the
-     full document text. Entities are linked to Chunks via FROM_CHUNK edges.
-     Embeddings are written to Chunk nodes by SimpleKGPipeline (required by
-     the library) but are never queried — Qdrant owns all vector search.
+  2. Run ReLiK on each chunk to extract Entity nodes and typed relationships.
+     Entities are linked to Chunks via FROM_CHUNK edges.
+     No embeddings are written to Neo4j.
+
+  This matches the Qdrant+Neo4j reference architecture:
+    Qdrant: vectors + (document_id, chunk_index) payload
+    Neo4j:  Entity nodes + relationships + Chunk nodes (no vectors)
 
 Retrieval (enrich_docs_with_graph):
   Called after RRF merge (and before reranking) on the merged doc list.
-  For each doc, looks up its Chunk node by (document_id, chunk_index), then
-  traverses entity relationships outward. Appends a [Graph context] block of
-  entity triples to the chunk text so the reranker and LLM see richer context.
-
-  This matches the Qdrant+Neo4j reference architecture:
-    vector search (Qdrant) → IDs → graph traversal (Neo4j) → enriched context
+  Looks up each Chunk by (document_id, chunk_index), traverses FROM_CHUNK
+  edges to Entity nodes, then one hop of entity-to-entity relationships.
+  Appends a [Graph context] block of triples to the chunk text.
 
 Deletion:
   delete_graph_for_document / delete_graph_for_kb — always run regardless of
@@ -32,8 +32,6 @@ import logging
 from typing import Optional
 
 import neo4j
-from neo4j_graphrag.experimental.pipeline.kg_builder import SimpleKGPipeline
-from neo4j_graphrag.llm import OpenAILLM
 from langchain_core.documents import Document as LangchainDocument
 
 from app.core.config import settings
@@ -42,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 # ── Module-level singletons (lazy) ────────────────────────────────────────────
 _neo4j_driver: Optional[neo4j.Driver] = None
+_relik_model = None   # loaded once on first ingest call
 
 
 def _get_driver() -> neo4j.Driver:
@@ -54,32 +53,18 @@ def _get_driver() -> neo4j.Driver:
     return _neo4j_driver
 
 
-def _make_kg_builder() -> SimpleKGPipeline:
-    """Create a fresh SimpleKGPipeline per document (no shared state).
-
-    SimpleKGPipeline requires an embedder — we provide a real one but do NOT
-    create a Neo4j vector index.  The embeddings land on Chunk nodes but are
-    never queried; Qdrant owns all vector search.
-    """
-    from neo4j_graphrag.embeddings import OpenAIEmbeddings
-
-    llm = OpenAILLM(
-        model_name=settings.graphrag_model,
-        model_params={"temperature": 0},
-        base_url=settings.OPENAI_API_BASE,
-        api_key=settings.OPENAI_API_KEY,
-    )
-    embedder = OpenAIEmbeddings(
-        base_url=settings.OPENAI_API_BASE,
-        api_key=settings.OPENAI_API_KEY,
-        model=settings.OPENAI_EMBEDDINGS_MODEL,
-    )
-    return SimpleKGPipeline(
-        llm=llm,
-        driver=_get_driver(),
-        embedder=embedder,
-        from_pdf=False,
-    )
+def _get_relik():
+    """Lazy-load ReLiK model singleton (CPU, small variant)."""
+    global _relik_model
+    if _relik_model is None:
+        from relik import Relik
+        logger.info("GraphService: loading ReLiK model (first call)...")
+        _relik_model = Relik.from_pretrained(
+            "relik-ie/relik-relation-extraction-small",
+            device="cpu",
+        )
+        logger.info("GraphService: ReLiK model loaded")
+    return _relik_model
 
 
 # ── Ingest ─────────────────────────────────────────────────────────────────────
@@ -92,23 +77,26 @@ async def build_graph_for_document(
     chunk_ids: list[str],
 ) -> None:
     """
-    Extract entity/relationship graph from document text and store in Neo4j.
+    Extract entity/relationship graph from document chunks and store in Neo4j.
 
     Called from document_processor.py step 9. Non-fatal — callers catch all
     exceptions so a Neo4j failure never breaks the core retrieval pipeline.
 
-    Chunk nodes are keyed by (document_id, chunk_index) which matches the
-    payload stored in every Qdrant point — this is the cross-reference link
-    used by enrich_docs_with_graph() at query time.
+    Per-chunk ReLiK extraction writes:
+      - Entity nodes  (label=Entity, properties: name, type)
+      - Typed relationship edges between entities
+      - FROM_CHUNK edges linking Entity → Chunk
+
+    Zero embeddings are written to Neo4j.
     """
     if not settings.GRAPHRAG_ENABLED:
         return
 
     driver = _get_driver()
+    relik = _get_relik()
 
-    # 1. Write Chunk nodes with the identifiers Qdrant stores in its payload.
-    #    qdrant_id is stored for debugging/tracing but not used for lookup
-    #    (document_id + chunk_index is the stable key used at retrieval time).
+    # 1. Write Chunk nodes — keyed by (document_id, chunk_index) to match
+    #    the payload Qdrant stores on every point.
     logger.info(
         "GraphService: writing %d Chunk nodes for doc %d (kb=%d)",
         len(chunks), document_id, kb_id,
@@ -131,26 +119,61 @@ async def build_graph_for_document(
                 file_name=file_name,
             )
 
-    # 2. Run SimpleKGPipeline for entity/relationship extraction.
-    #    embedder=None so it never calls setNodeVectorProperty — Qdrant owns
-    #    embeddings. The pipeline writes __KGBuilder__ entity nodes and edges.
-    builder = _make_kg_builder()
-    full_text = "\n\n".join(chunks)
+    # 2. Extract entities and relationships per chunk with ReLiK.
+    total_entities = 0
+    total_relations = 0
+
+    with driver.session() as session:
+        for idx, text in enumerate(chunks):
+            out = relik(text)
+
+            # Write Entity nodes and FROM_CHUNK edges
+            for span in out.spans:
+                entity_name = span.text.strip()
+                entity_type = span.label if span.label and span.label != "--NME--" else "Entity"
+                if not entity_name:
+                    continue
+                session.run(
+                    """
+                    MERGE (e:Entity {name: $name})
+                    SET e.type = $type
+                    WITH e
+                    MATCH (c:Chunk {document_id: $document_id, chunk_index: $chunk_index})
+                    MERGE (e)-[:FROM_CHUNK]->(c)
+                    """,
+                    name=entity_name,
+                    type=entity_type,
+                    document_id=str(document_id),
+                    chunk_index=idx,
+                )
+                total_entities += 1
+
+            # Write typed relationship edges between entity pairs
+            for triplet in out.triplets:
+                subj = triplet.subject.text.strip()
+                obj  = triplet.object.text.strip()
+                rel  = triplet.label.upper().replace(" ", "_") if triplet.label else "RELATED_TO"
+                if not subj or not obj:
+                    continue
+                # Use APOC-safe dynamic relationship via Cypher parameter workaround:
+                # Neo4j doesn't support parameterised rel types, so we whitelist via
+                # a safe identifier (alphanumeric + underscore only).
+                rel_safe = "".join(c if c.isalnum() or c == "_" else "_" for c in rel)
+                session.run(
+                    f"""
+                    MERGE (a:Entity {{name: $subj}})
+                    MERGE (b:Entity {{name: $obj}})
+                    MERGE (a)-[:`{rel_safe}`]->(b)
+                    """,
+                    subj=subj,
+                    obj=obj,
+                )
+                total_relations += 1
 
     logger.info(
-        "GraphService: extracting entities for doc %d (%s) | %d chars",
-        document_id, file_name, len(full_text),
+        "GraphService: doc %d — %d entities, %d relations written to Neo4j",
+        document_id, total_entities, total_relations,
     )
-
-    await builder.run_async(
-        text=full_text,
-        document_metadata={
-            "kb_id": str(kb_id),
-            "document_id": str(document_id),
-            "file_name": file_name,
-        },
-    )
-    logger.info("GraphService: SimpleKGPipeline complete for doc %d", document_id)
 
 
 # ── Retrieval ──────────────────────────────────────────────────────────────────
@@ -176,7 +199,7 @@ def enrich_docs_with_graph(docs: list[LangchainDocument]) -> list[LangchainDocum
     graph_hits = 0
 
     for doc in docs:
-        doc_id  = doc.metadata.get("document_id")
+        doc_id    = doc.metadata.get("document_id")
         chunk_idx = doc.metadata.get("chunk_index")
 
         if doc_id is None or chunk_idx is None:
@@ -188,15 +211,12 @@ def enrich_docs_with_graph(docs: list[LangchainDocument]) -> list[LangchainDocum
                 result = session.run(
                     """
                     MATCH (c:Chunk {document_id: $document_id, chunk_index: $chunk_index})
-                    OPTIONAL MATCH (c)<-[:FROM_CHUNK]-(entity)
-                    OPTIONAL MATCH (entity)-[r]-(neighbor)
-                    WHERE type(r) <> 'FROM_CHUNK'
-                      AND type(r) <> 'FROM_DOCUMENT'
-                      AND type(r) <> 'NEXT_CHUNK'
+                    OPTIONAL MATCH (entity:Entity)-[:FROM_CHUNK]->(c)
+                    OPTIONAL MATCH (entity)-[r]-(neighbor:Entity)
                     WITH c,
-                         coalesce(entity.name, entity.title, entity.id) AS ename,
-                         type(r)                                         AS rel,
-                         coalesce(neighbor.name, neighbor.title, neighbor.id) AS nname
+                         entity.name                                            AS ename,
+                         type(r)                                                AS rel,
+                         neighbor.name                                          AS nname
                     WHERE ename IS NOT NULL AND nname IS NOT NULL
                     WITH c, collect(DISTINCT [ename, rel, nname])[..40] AS triples
                     RETURN triples
@@ -249,7 +269,6 @@ def delete_graph_for_document(kb_id: int, document_id: int) -> None:
 
     driver = _get_driver()
     with driver.session() as session:
-        # Delete Chunk nodes for this document
         result = session.run(
             """
             MATCH (c:Chunk {document_id: $doc_id})
@@ -259,23 +278,23 @@ def delete_graph_for_document(kb_id: int, document_id: int) -> None:
             doc_id=str(document_id),
         )
         record = result.single()
-        deleted = record["deleted"] if record else 0
         logger.info(
-            "GraphService: deleted %d Chunk nodes for doc %d", deleted, document_id
+            "GraphService: deleted %d Chunk nodes for doc %d",
+            record["deleted"] if record else 0, document_id,
         )
 
-        # Clean up entity nodes no longer connected to any Chunk
+        # Clean up Entity nodes no longer connected to any Chunk
         result = session.run(
             """
-            MATCH (n:__Entity__)
-            WHERE NOT EXISTS { MATCH (n)-[:FROM_CHUNK]-() }
-            DETACH DELETE n
-            RETURN count(n) AS cleaned
+            MATCH (e:Entity)
+            WHERE NOT EXISTS { MATCH (e)-[:FROM_CHUNK]->() }
+            DETACH DELETE e
+            RETURN count(e) AS cleaned
             """
         )
         record = result.single()
         logger.info(
-            "GraphService: cleaned %d orphaned entity nodes after doc %d deletion",
+            "GraphService: cleaned %d orphaned Entity nodes after doc %d deletion",
             record["cleaned"] if record else 0, document_id,
         )
 
@@ -306,17 +325,17 @@ def delete_graph_for_kb(kb_id: int) -> None:
             record["deleted"] if record else 0, kb_id,
         )
 
-        # Orphaned entities (no kb_id) that lost all their Chunk connections
+        # Orphaned Entity nodes with no remaining connections
         result = session.run(
             """
-            MATCH (n:__Entity__)
-            WHERE NOT EXISTS { MATCH (n)-[]-() }
-            DETACH DELETE n
-            RETURN count(n) AS cleaned
+            MATCH (e:Entity)
+            WHERE NOT EXISTS { MATCH (e)-[]-() }
+            DETACH DELETE e
+            RETURN count(e) AS cleaned
             """
         )
         record = result.single()
         logger.info(
-            "GraphService: cleaned %d orphaned entity nodes after kb_%d deletion",
+            "GraphService: cleaned %d orphaned Entity nodes after kb_%d deletion",
             record["cleaned"] if record else 0, kb_id,
         )
