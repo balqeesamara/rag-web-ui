@@ -21,6 +21,6 @@ markitdown-ocr>=0.1.0
 # torch>=2.0.0 --index-url https://download.pytorch.org/whl/cpu
 # torchvision>=0.15.0 --index-url https://download.pytorch.org/whl/cpu
 sentence-transformers>=3.0.0,<6.0.0
+pyarrow>=14.0.0
 neo4j>=5.26
 neo4j-graphrag[qdrant]>=1.8.0
-relik>=0.4.0

@@ -1,5 +1,17 @@
 "use client";
 
+// crypto.randomUUID() is only available in secure contexts (HTTPS).
+// Fall back to a manual UUID v4 implementation for HTTP (local dev).
+function generateId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
 import { useEffect, useRef, useState, useMemo } from "react";
 import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
@@ -313,9 +325,9 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         ? window.localStorage.getItem("token") || ""
         : "";
 
-    const assistantId = crypto.randomUUID();
+    const assistantId = generateId();
     const userMessage: Message = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       role: "user",
       content: trimmedInput,
     };

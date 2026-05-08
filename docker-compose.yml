@@ -10,8 +10,8 @@ services:
     volumes:
       - ./backend:/app
       - ./uploads:/app/uploads
-      - ./assets/fastembed:/app/assets/fastembed
-      - ./assets/reranker:/app/assets/reranker
+      - ./assets:/app/assets
+      - ./assets/relik:/root/.cache/huggingface/hub
     networks:
       - app_network
     depends_on:
