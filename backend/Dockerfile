@@ -17,12 +17,12 @@ COPY requirements.txt .
 
 # Install CPU-only torch before requirements.txt so sentence-transformers
 # doesn't pull the full CUDA stack (~2GB of nvidia/triton wheels).
-# RUN pip install --no-cache-dir \
-#     torch torchvision --index-url https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir \
+    torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
-# # Install Python packages
-# RUN pip install --no-cache-dir -r requirements.txt \
-#         --extra-index-url https://download.pytorch.org/whl/cpu
+# Install Python packages
+RUN pip install --no-cache-dir -r requirements.txt \
+        --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Copy entrypoint script first
 COPY entrypoint.sh .
