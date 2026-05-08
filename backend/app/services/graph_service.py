@@ -227,10 +227,11 @@ def delete_graph_for_document(kb_id: int, document_id: int) -> None:
     """
     Remove all Neo4j nodes for a deleted document.
 
-    Deletes all Chunk nodes tagged with document_id, then removes any entity
-    nodes that no longer have connections to any remaining chunks in this KB.
+    Intentionally NOT gated on GRAPHRAG_ENABLED — same reasoning as
+    delete_graph_for_kb: data may exist from a prior ingest run when the
+    flag was on.
     """
-    if not settings.GRAPHRAG_ENABLED:
+    if not settings.NEO4J_URI:
         return
 
     driver = _get_driver()
@@ -283,24 +284,53 @@ def delete_graph_for_kb(kb_id: int) -> None:
     """
     Remove all Neo4j nodes for an entire deleted knowledge base.
     Also drops the vector index for this KB.
+
+    Intentionally NOT gated on GRAPHRAG_ENABLED — deletion must run regardless
+    of whether GraphRAG is currently enabled, since data may have been written
+    when the flag was on. Skipping deletion based on a runtime flag causes
+    orphaned nodes whenever the flag is toggled between ingest and delete.
     """
-    if not settings.GRAPHRAG_ENABLED:
+    if not settings.NEO4J_URI:
         return
 
     driver = _get_driver()
     with driver.session() as session:
+        # 1. Delete all Chunk and Document nodes for this KB, along with any
+        #    entity nodes exclusively connected to those chunks (DETACH DELETE
+        #    removes the relationships; the WHERE NOT EXISTS guard below catches
+        #    entities whose *only* connections were to this KB's chunks).
         result = session.run(
             """
             MATCH (n {kb_id: $kb_id})
+            WITH collect(n) AS kb_nodes
+            UNWIND kb_nodes AS n
             DETACH DELETE n
             RETURN count(n) AS deleted
             """,
             kb_id=str(kb_id),
         )
         record = result.single()
-        deleted = record["deleted"] if record else 0
+        deleted_kb_nodes = record["deleted"] if record else 0
         logger.info(
-            "GraphService: deleted %d nodes for kb_%d", deleted, kb_id
+            "GraphService: deleted %d nodes with kb_id for kb_%d",
+            deleted_kb_nodes, kb_id
+        )
+
+        # 2. Clean up entity nodes that are now fully disconnected (their only
+        #    FROM_CHUNK links pointed to the chunks we just deleted above).
+        result = session.run(
+            """
+            MATCH (e:__Entity__)
+            WHERE NOT EXISTS { MATCH (e)-[]-() }
+            DETACH DELETE e
+            RETURN count(e) AS cleaned_orphans
+            """,
+        )
+        record = result.single()
+        cleaned_orphans = record["cleaned_orphans"] if record else 0
+        logger.info(
+            "GraphService: cleaned %d orphaned entity nodes after kb_%d deletion",
+            cleaned_orphans, kb_id
         )
 
         # Drop the vector index for this KB

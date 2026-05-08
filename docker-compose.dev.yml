@@ -16,7 +16,7 @@ services:
     volumes:
       - ./backend:/app
       - ./uploads:/app/uploads
-      - ./assets/fastembed:/app/assets/fastembed
+      - ./assets:/app/assets
     networks:
       - app_network
     depends_on:

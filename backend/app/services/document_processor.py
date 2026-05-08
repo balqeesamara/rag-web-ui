@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import re
@@ -33,6 +34,11 @@ from app.services.chunk_record import ChunkRecord
 # ── Module-level singletons (lazy) ────────────────────────────────────────────
 _qdrant_client: Optional[QdrantClient] = None
 _sparse_embedder: Optional[SparseTextEmbedding] = None
+
+# Limit concurrent background document processing to avoid exhausting the DB
+# connection pool. Pool is size=5 overflow=10 (max 15); leave room for
+# request-serving sessions alongside background workers.
+_processing_semaphore = asyncio.Semaphore(8)
 _markitdown: Optional[MarkItDown] = None
 _EMBED_BATCH_SIZE = 32
 _QDRANT_UPSERT_BATCH = 100
@@ -494,6 +500,29 @@ async def process_document_background(
     if chunk_overlap is None:
         chunk_overlap = settings.chunk_overlap
     logger.info(f"Starting background processing for task {task_id}, file: {file_name}")
+
+    async with _processing_semaphore:
+        await _process_document_background_inner(
+            temp_path, file_name, kb_id, task_id, db, user_id, chunk_size, chunk_overlap
+        )
+
+
+async def _process_document_background_inner(
+    temp_path: str,
+    file_name: str,
+    kb_id: int,
+    task_id: int,
+    db: Session = None,
+    user_id: int = None,
+    chunk_size: int = None,
+    chunk_overlap: int = None
+) -> None:
+    """Process document in background (runs under _processing_semaphore)"""
+    logger = logging.getLogger(__name__)
+    if chunk_size is None:
+        chunk_size = settings.CHUNK_SIZE
+    if chunk_overlap is None:
+        chunk_overlap = settings.chunk_overlap
 
     if db is None:
         db = SessionLocal()

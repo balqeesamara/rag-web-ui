@@ -10,6 +10,10 @@ Model: cross-encoder/ms-marco-MiniLM-L-12-v2
   - 12-layer MiniLM — fast enough for CPU, ~6ms per chunk on modern hardware
   - Outputs a raw logit (higher = more relevant); no fixed 0–1 scale
 
+Score distribution (empirical, ms-marco-MiniLM-L-12-v2, Identity activation):
+  Scores are bimodal — relevant chunks cluster 1–10, irrelevant cluster -5 to -11.
+  There is almost no middle ground. 0.0 is a reliable cutoff for this model.
+
 Integration point: called in hybrid_search_with_legs() after RRF merge,
 before the docs are passed to the LLM.
 """
@@ -37,46 +41,53 @@ def _get_cross_encoder():
         model_name = settings.RERANKER_MODEL
         cache_dir = settings.RERANKER_CACHE_DIR
 
-        logger.info(
-            "Reranker: loading cross-encoder model=%s cache=%s",
-            model_name,
-            cache_dir,
-        )
         os.makedirs(cache_dir, exist_ok=True)
-        _cross_encoder = CrossEncoder(
-            model_name,
+
+        kwargs = dict(
             cache_folder=cache_dir,
-            # No max_length override — MiniLM handles up to 512 tokens natively.
-            # Longer chunks are truncated by the tokeniser, which is fine for
-            # passage-level relevance scoring.
+            model_kwargs={},
+            processor_kwargs={},
         )
-        logger.info("Reranker: model loaded")
+
+        # Try loading from local cache first to avoid HF Hub version-check
+        # roundtrips on every container start. Falls back to downloading if
+        # the model isn't cached yet.
+        try:
+            _cross_encoder = CrossEncoder(model_name, local_files_only=True, **kwargs)
+            logger.info("Reranker: model loaded from local cache")
+        except Exception:
+            logger.info("Reranker: model not in cache, downloading model=%s", model_name)
+            _cross_encoder = CrossEncoder(model_name, **kwargs)
+            logger.info("Reranker: model downloaded and cached")
+
     return _cross_encoder
 
 
 def rerank(
     query: str,
     docs: List[LangchainDocument],
-    top_n: Optional[int] = None,
+    score_threshold: Optional[float] = None,
 ) -> List[LangchainDocument]:
     """
-    Re-score docs against query using the cross-encoder and return the
-    top_n most relevant ones in descending order.
+    Re-score docs against query using the cross-encoder and filter by threshold.
+
+    All chunks scoring above the threshold are returned, ordered by score.
+    No top_n cap — if 8 out of 10 chunks are relevant, all 8 pass.
 
     Args:
-        query:  The retrieval query (standalone question after rewriting).
-        docs:   Candidates from RRF merge — already filtered by min_rrf_score.
-        top_n:  How many to keep. Defaults to settings.RERANKER_TOP_N.
+        query:           The retrieval query.
+        docs:            Candidates from RRF merge.
+        score_threshold: Min logit to pass. Defaults to RERANKER_SCORE_THRESHOLD.
 
     Returns:
-        List of LangchainDocuments, re-ordered by cross-encoder score,
-        truncated to top_n. Each doc gets metadata["_reranker_score"] set.
+        Docs re-ordered by cross-encoder score, filtered by threshold only.
+        Each doc gets metadata["_reranker_score"] set.
     """
     if not docs:
         return docs
 
-    if top_n is None:
-        top_n = settings.RERANKER_TOP_N
+    if score_threshold is None:
+        score_threshold = settings.RERANKER_SCORE_THRESHOLD
 
     encoder = _get_cross_encoder()
 
@@ -86,18 +97,27 @@ def rerank(
     scored = sorted(zip(scores, docs), key=lambda x: x[0], reverse=True)
 
     logger.info(
-        "Reranker: query=%r | input=%d chunks | keeping top_n=%d | "
-        "score range=[%.3f, %.3f]",
+        "Reranker: query=%r | input=%d | threshold=%.2f | score range=[%.3f, %.3f]",
         query[:80],
         len(docs),
-        min(top_n, len(scored)),
+        score_threshold,
         scored[-1][0] if scored else 0.0,
         scored[0][0] if scored else 0.0,
     )
 
+    for rank, (score, doc) in enumerate(scored):
+        snippet = doc.page_content[:80].replace("\n", " ")
+        logger.info("  reranker[%d] score=%.4f text=%r", rank, score, snippet)
+
     result = []
-    for score, doc in scored[:top_n]:
+    for score, doc in scored:
+        if score < score_threshold:
+            break  # sorted descending — nothing below this will pass
         doc.metadata["_reranker_score"] = round(score, 4)
         result.append(doc)
 
+    logger.info(
+        "Reranker: %d/%d chunks passed threshold=%.2f",
+        len(result), len(scored), score_threshold,
+    )
     return result

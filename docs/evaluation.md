@@ -8,22 +8,55 @@ the RAG codebase and can run on any machine that can reach the API.
 
 ## Architecture
 
+The harness is split into three files:
+
 ```
-┌─────────────────────────────────┐        HTTP only
-│       Eval Harness              │ ──────────────────► RAG App (FastAPI)
-│  eval/eval_harness.py           │                         │
-│                                 │  POST /api/auth/token   │
-│  1. login                       │ ◄───────────────────────┤
-│  2. create KB                   │  POST /api/knowledge-base
-│  3. upload articles             │  POST /api/knowledge-base/{id}/documents/upload
-│  4. trigger processing          │  POST /api/knowledge-base/{id}/documents/process
-│  5. poll ingest-status          │  GET  /api/query/kb/{id}/ingest-status
-│  6. run queries (per config)    │  POST /api/query
-│  7. score + write report        │
-└─────────────────────────────────┘
+eval/
+├── lib.py            RAGClient, scoring functions, RETRIEVAL_CONFIGS (shared)
+├── ingest.py         fetch SQuAD, create KB, upload + wait for processing
+├── eval.py           run retrieval configs, score, print table, write JSON
+└── requirements.txt  requests, datasets, tqdm
+```
+
+Ingest and eval are intentionally separate so the dataset is uploaded once and
+evaluation can be re-run against the same KB as many times as needed.
+
+```
+┌──────────────┐  ingest.py                     HTTP only
+│              │  1. login                ──────────────────► RAG App (FastAPI)
+│  eval suite  │  2. create KB                                     │
+│              │  3. upload articles       POST /api/knowledge-base/{id}/documents/upload
+│              │  4. trigger processing    POST /api/knowledge-base/{id}/documents/process
+│              │  5. poll ingest-status    GET  /api/query/kb/{id}/ingest-status
+│              │  ── writes ingest_state.json ──────────────────────────────────
+│              │
+│              │  eval.py
+│              │  6. read ingest_state.json
+│              │  7. run queries per config  POST /api/query
+│              │  8. score + write report
+└──────────────┘
 ```
 
 The RAG app needs no knowledge of evaluation — it just serves normal API requests.
+
+---
+
+## Quick start
+
+```bash
+cd eval
+pip install -r requirements.txt
+
+# Step 1 — ingest once
+python ingest.py --username eval_user --password yourpassword \
+    --articles 20 --questions 60
+
+# Step 2 — evaluate (repeat as needed, no re-ingest)
+python eval.py --username eval_user --password yourpassword
+```
+
+`ingest.py` writes `ingest_state.json` containing the `kb_id` and question set.
+`eval.py` reads it on every run.
 
 ---
 
@@ -147,115 +180,125 @@ Add sparse and the balance shifts again — which is exactly what the harness me
 
 ---
 
-## Eval Harness
+## ingest.py
 
-### Location
+Fetches the SQuAD 2.0 dataset, creates a knowledge base, uploads all articles,
+waits for processing to complete, and writes `ingest_state.json`.
 
-```
-eval/
-├── eval_harness.py     standalone script, no RAG app imports
-└── requirements.txt    requests, datasets, tqdm
-```
-
-### Setup
+### Usage
 
 ```bash
-cd eval
-pip install -r requirements.txt
+python ingest.py \
+    --username  eval_user \
+    --password  yourpassword \
+    --articles  20 \
+    --questions 60 \
+    --state     ingest_state.json
+```
+
+### Flags
+
+| Flag          | Env var    | Default                     | Description |
+|---------------|------------|-----------------------------|-------------|
+| `--base-url`  | `BASE_URL` | `http://localhost:8000/api` | RAG API base URL |
+| `--username`  | `USERNAME` | `eval_user`                 | Login username |
+| `--password`  | `PASSWORD` | `eval_pass`                 | Login password |
+| `--email`     | `EMAIL`    | `eval@example.com`          | Used on first registration |
+| `--articles`  | —          | `20`                        | SQuAD articles to ingest |
+| `--questions` | —          | `60`                        | Questions to pull from those articles |
+| `--state`     | —          | `ingest_state.json`         | Output file path |
+
+### ingest_state.json
+
+```json
+{
+  "kb_id":      7,
+  "n_articles": 20,
+  "questions": [
+    { "question": "To whom did the Virgin Mary allegedly appear?", "answers": ["Saint Bernadette Soubirous"], "title": "Lourdes" }
+  ]
+}
+```
+
+Keep this file — `eval.py` reads it on every run. You can also edit it manually
+to point at a different KB or swap in a different question set.
+
+---
+
+## eval.py
+
+Reads `ingest_state.json`, runs retrieval configs against the KB, scores results,
+prints a comparison table, and writes `eval_results.json`.
+
+### Usage
+
+```bash
+# Full sweep (all configs)
+python eval.py --username eval_user --password yourpassword
+
+# Include graph config (requires Neo4j + GraphRAG)
+python eval.py --username eval_user --password yourpassword --graph
+
+# Single config
+python eval.py --username eval_user --password yourpassword --use-dense --use-sparse
+
+# With LLM answer generation (slower, costs tokens)
+python eval.py --username eval_user --password yourpassword --generate-answers
+
+# Custom state file
+python eval.py --username eval_user --password yourpassword --state other_state.json
 ```
 
 ### Modes
 
-The harness runs in two modes depending on whether leg flags are passed.
+#### Sweep mode (default — no leg flags)
 
-#### Sweep mode (no leg flags — default)
+Runs all predefined retrieval configurations against the same question set.
 
-Runs all predefined retrieval configurations against the same question set and
-prints a comparison table. Use this to benchmark the effect of each source.
-
-```bash
-python eval_harness.py \
-    --base-url  http://localhost:8000/api \
-    --username  eval_user \
-    --password  yourpassword \
-    --articles  20 \
-    --questions 60
-```
-
-Configs included in a sweep:
-
-| Config name       | Legs active                          |
-|-------------------|--------------------------------------|
-| `exact_only`      | Keyword only (baseline)              |
-| `dense_only`      | Dense vectors only                   |
-| `sparse_only`     | Sparse vectors (SPLADE) only         |
-| `dense+sparse`    | Dense + Sparse, no keyword           |
-| `dense+exact`     | Dense + Keyword                      |
-| `sparse+exact`    | Sparse + Keyword                     |
-| `all_3`           | Dense + Sparse + Keyword (full hybrid) |
-| `all_3+graph`     | Full hybrid + Knowledge Graph (opt-in via `--graph`) |
-
-Add `--graph` to include the `all_3+graph` config (requires Neo4j and GraphRAG to be configured).
+| Config name    | Legs active                              |
+|----------------|------------------------------------------|
+| `exact_only`   | Keyword only (baseline)                  |
+| `dense_only`   | Dense vectors only                       |
+| `sparse_only`  | Sparse vectors (SPLADE) only             |
+| `dense+sparse` | Dense + Sparse, no keyword               |
+| `dense+exact`  | Dense + Keyword                          |
+| `sparse+exact` | Sparse + Keyword                         |
+| `all_3`        | Dense + Sparse + Keyword (full hybrid)   |
+| `all_3+graph`  | Full hybrid + Knowledge Graph (opt-in via `--graph`) |
 
 #### Single-config mode (leg flags passed)
 
-Runs exactly one combination — the one you specify. Useful for quick targeted tests
-without waiting for a full sweep.
+Runs exactly one combination. Keyword (`exact`) is always on.
 
 ```bash
-# keyword only (exact is always on, no other flags needed)
-python eval_harness.py --kb-id 3 --questions 60
-
 # dense + keyword
-python eval_harness.py --kb-id 3 --use-dense --questions 60
+python eval.py --use-dense
 
 # sparse + keyword
-python eval_harness.py --kb-id 3 --use-sparse --questions 60
+python eval.py --use-sparse
 
-# dense + sparse + keyword (full hybrid, no graph)
-python eval_harness.py --kb-id 3 --use-dense --use-sparse --questions 60
+# dense + sparse + keyword
+python eval.py --use-dense --use-sparse
 
-# everything including knowledge graph
-python eval_harness.py --kb-id 3 --use-dense --use-sparse --use-kg --questions 60
+# everything including graph
+python eval.py --use-dense --use-sparse --use-kg
 ```
 
-Keyword search (`exact`) is always enabled and cannot be turned off — this matches
-the application behaviour where keyword search is the always-on baseline.
+### Flags
 
-### All flags
-
-| Flag                | Env var    | Default                     | Description |
-|---------------------|------------|-----------------------------|-------------|
-| `--base-url`        | `BASE_URL` | `http://localhost:8000/api` | RAG API base URL |
-| `--username`        | `USERNAME` | `eval_user`                 | Login username |
-| `--password`        | `PASSWORD` | `eval_pass`                 | Login password |
-| `--email`           | `EMAIL`    | `eval@example.com`          | Used on first registration |
-| `--articles`        | —          | `20`                        | SQuAD articles to ingest |
-| `--questions`       | —          | `60`                        | Questions to evaluate |
-| `--use-dense`       | —          | off                         | Enable dense vector leg |
-| `--use-sparse`      | —          | off                         | Enable sparse vector (SPLADE) leg |
-| `--use-kg`          | —          | off                         | Enable knowledge graph (Neo4j) leg |
-| `--graph`           | —          | off                         | Include `all_3+graph` in sweep |
-| `--generate-answers`| —          | off                         | Run LLM answer generation (costs tokens) |
-| `--kb-id`           | —          | —                           | Reuse an existing KB (skip ingest) |
-| `--keep-kb`         | —          | off                         | Don't delete the KB after eval |
-| `--output`          | —          | `eval_results.json`         | Output file path |
-
-### Reusing a KB
-
-Ingestion is slow and only needs to happen once. After the first run, note the
-`kb_id` from the output and pass `--kb-id` on subsequent runs to skip re-upload:
-
-```bash
-# First run — ingests and evaluates
-python eval_harness.py --articles 20 --questions 60 --keep-kb
-# note kb_id from output, e.g. 7
-
-# Subsequent runs — evaluation only, no re-ingest
-python eval_harness.py --kb-id 7 --questions 60
-python eval_harness.py --kb-id 7 --use-dense --questions 60
-python eval_harness.py --kb-id 7 --use-sparse --use-kg --questions 60
-```
+| Flag                 | Env var    | Default                     | Description |
+|----------------------|------------|-----------------------------|-------------|
+| `--base-url`         | `BASE_URL` | `http://localhost:8000/api` | RAG API base URL |
+| `--username`         | `USERNAME` | `eval_user`                 | Login username |
+| `--password`         | `PASSWORD` | `eval_pass`                 | Login password |
+| `--email`            | `EMAIL`    | `eval@example.com`          | Used on first registration |
+| `--state`            | —          | `ingest_state.json`         | State file from ingest.py |
+| `--use-dense`        | —          | off                         | Enable dense vector leg |
+| `--use-sparse`       | —          | off                         | Enable sparse vector (SPLADE) leg |
+| `--use-kg`           | —          | off                         | Enable knowledge graph (Neo4j) leg |
+| `--graph`            | —          | off                         | Include `all_3+graph` in sweep |
+| `--generate-answers` | —          | off                         | Run LLM answer generation (costs tokens) |
+| `--output`           | —          | `eval_results.json`         | Output file path |
 
 ---
 
@@ -269,7 +312,7 @@ extractive QA. Each row contains:
 - `answers`  — one or more correct answer spans extracted from the context
 
 The harness uploads contexts as plain-text documents, queries with the questions,
-and compares the LLM answer against the ground truth spans.
+and scores against the ground truth spans.
 
 SQuAD 2.0 (`squad_v2`) adds unanswerable questions — the harness skips those
 automatically (they have empty `answers.text`).
@@ -295,25 +338,35 @@ F1        = 2 * precision * recall / (precision + recall)
 ```
 
 Computed as `max(F1)` over all reference answers for a question.
-Only meaningful when `--generate-answers` is passed; otherwise 0.
+
+When `--generate-answers` is **off** (default), F1 and EM are scored against the
+concatenated retrieved context text rather than a generated answer. This is
+*oracle span scoring* — it measures whether the answer tokens are present anywhere
+in the retrieved chunks, which is the right signal for benchmarking retrieval
+configurations without paying LLM costs.
+
+When `--generate-answers` is **on**, scoring is against the LLM's answer and
+reflects end-to-end quality.
 
 ### Exact Match
 
 1 if the normalised prediction equals any normalised reference answer, 0 otherwise.
+Almost always 0 in oracle-context mode (context is much longer than the answer span).
+More meaningful with `--generate-answers`.
 
 ### Hit Rate
 
 1 if any ground truth answer string appears (substring match, case-insensitive) in
 any retrieved chunk. Measures retrieval quality independent of answer generation —
-useful when running without `--generate-answers`.
+the primary signal when running without `--generate-answers`.
 
 ### Interpreting scores
 
-| Token-F1   | Interpretation |
-|------------|----------------|
-| > 0.65     | Good — retrieval and extraction both working |
-| 0.40–0.65  | Retrieval probably OK, answer synthesis weak |
-| < 0.40     | Likely retrieval misses — check chunk size, embedding model |
+| Token-F1  | Interpretation |
+|-----------|----------------|
+| > 0.65    | Good — retrieval and extraction both working |
+| 0.40–0.65 | Retrieval probably OK, answer synthesis weak |
+| < 0.40    | Likely retrieval misses — check chunk size, embedding model |
 
 - Low F1 + high `confidence: none` count → retrieval not finding the right chunks.
   Try reducing `CHUNK_SIZE`, switching embedding model, or enabling more legs.
@@ -331,7 +384,6 @@ useful when running without `--generate-answers`.
 {
   "timestamp":        "2026-05-07T14:30:22Z",
   "kb_id":            7,
-  "n_articles":       20,
   "n_questions":      60,
   "generate_answers": false,
   "configs_run":      ["exact_only", "dense_only", "all_3"],
@@ -369,9 +421,8 @@ useful when running without `--generate-answers`.
 }
 ```
 
-The `summary` array is ordered by config (same order as `configs_run`) and is
-sufficient for a comparison table. The `details` dict contains per-question
-breakdowns keyed by config name for deeper analysis.
+The `summary` array is ordered by config and sufficient for a comparison table.
+The `details` dict contains per-question breakdowns keyed by config name.
 
 ---
 
@@ -381,5 +432,7 @@ breakdowns keyed by config name for deeper analysis.
   scores of 0 — it does not abort the run.
 - If any document fails processing (`failed > 0` in ingest-status), the harness
   logs a warning and continues — partial KBs are valid for benchmarking purposes.
-- The eval KB is deleted after the run by default. Pass `--keep-kb` to retain it
-  for inspection or reuse with `--kb-id`.
+- Transient `ConnectionError` or `ReadTimeout` during the ingest poll loop are
+  retried silently. In `--reload` dev mode, uvicorn briefly drops connections
+  when it detects file changes; the poll loop rides through it.
+- The KB is **not** deleted after eval. Re-run `ingest.py` to create a fresh one.

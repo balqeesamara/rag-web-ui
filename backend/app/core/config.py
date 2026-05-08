@@ -100,7 +100,7 @@ class Settings(BaseSettings):
     RERANKER_CACHE_DIR: str = os.getenv("RERANKER_CACHE_DIR", "/app/assets/reranker")
     # How many chunks to keep after reranking. Must be <= RETRIEVAL_TOP_K.
     # Reducing this keeps only the most relevant chunks, further limiting noise.
-    RERANKER_TOP_N: int = int(os.getenv("RERANKER_TOP_N", "5"))
+    RERANKER_SCORE_THRESHOLD: float = float(os.getenv("RERANKER_SCORE_THRESHOLD", "-5.0"))
 
     # ── Chunking ────────────────────────────────────────────────────────────────
     # WARNING: changing these values after documents have been ingested creates

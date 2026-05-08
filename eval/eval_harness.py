@@ -70,6 +70,7 @@ pass them on the command line.
 import argparse
 import json
 import os
+import re
 import string
 import sys
 import time
@@ -232,27 +233,43 @@ class RAGClient:
             headers=self._headers(),
             timeout=self.timeout,
         )
-        r.raise_for_status()
+        # r.raise_for_status()
+        try:
+            r.raise_for_status()
+        except requests.exceptions.HTTPError:
+            print(r.text)  # 🔥 THIS IS CRITICAL
+            raise
         return r.json()["id"]
 
-    def upload_text(self, kb_id: int, filename: str, content: str) -> dict:
+    def upload_text(self, kb_id: int, filename: str, content: str) -> list[dict]:
         r = self.session.post(
             f"{self.base}/knowledge-base/{kb_id}/documents/upload",
-            files={"file": (filename, content.encode(), "text/plain")},
+            files=[("files", (filename, content.encode(), "text/plain"))],
             headers={"Authorization": f"Bearer {self.token}"},
             timeout=self.timeout,
         )
-        r.raise_for_status()
+        
+        # r.raise_for_status()
+        try:
+            r.raise_for_status()
+        except requests.exceptions.HTTPError:
+            print(r.text)  # 🔥 THIS IS CRITICAL
+            raise
         return r.json()
 
-    def trigger_processing(self, kb_id: int, doc_ids: list[int]) -> dict:
+    def trigger_processing(self, kb_id: int, upload_results: list[dict]) -> dict:
         r = self.session.post(
             f"{self.base}/knowledge-base/{kb_id}/documents/process",
-            json={"document_ids": doc_ids},
+            json=upload_results,
             headers=self._headers(),
             timeout=self.timeout,
         )
-        r.raise_for_status()
+        # r.raise_for_status()
+        try:
+            r.raise_for_status()
+        except requests.exceptions.HTTPError:
+            print(r.text)  # 🔥 THIS IS CRITICAL
+            raise
         return r.json()
 
     def ingest_status(self, kb_id: int) -> dict:
@@ -261,7 +278,12 @@ class RAGClient:
             headers=self._headers(),
             timeout=self.timeout,
         )
-        r.raise_for_status()
+        # r.raise_for_status()
+        try:
+            r.raise_for_status()
+        except requests.exceptions.HTTPError:
+            print(r.text)  # 🔥 THIS IS CRITICAL
+            raise
         return r.json()
 
     def query(
@@ -288,7 +310,12 @@ class RAGClient:
             headers=self._headers(),
             timeout=self.timeout,
         )
-        r.raise_for_status()
+        # r.raise_for_status()
+        try:
+            r.raise_for_status()
+        except requests.exceptions.HTTPError:
+            print(r.text)  # 🔥 THIS IS CRITICAL
+            raise
         return r.json()
 
     def delete_kb(self, kb_id: int) -> None:
@@ -342,19 +369,27 @@ def ingest_articles(
     poll_interval: int = 5,
     timeout: int = 300,
 ) -> None:
-    doc_ids = []
+    upload_results = []
     print(f"  Uploading {len(articles)} articles...")
     for title, text in tqdm(articles.items(), desc="  upload"):
-        resp = client.upload_text(kb_id, f"{title}.txt", text)
-        doc_ids.append(resp["id"])
+        # Keep filenames filesystem-safe; SQuAD titles can contain path separators.
+        safe_title = re.sub(r'[\\/:*?"<>|]+', "_", title).strip() or "untitled"
+        filename = f"{safe_title}.txt"
+        resp = client.upload_text(kb_id, filename, text)
+        upload_results.extend(resp)
 
-    print(f"  Triggering processing for {len(doc_ids)} documents...")
-    client.trigger_processing(kb_id, doc_ids)
+    print(f"  Triggering processing for {len(upload_results)} documents...")
+    client.trigger_processing(kb_id, upload_results)
 
     print("  Waiting for ingest to complete...")
     deadline = time.time() + timeout
     while time.time() < deadline:
-        status = client.ingest_status(kb_id)
+        try:
+            status = client.ingest_status(kb_id)
+        except (requests.exceptions.ConnectionError, requests.exceptions.ReadTimeout):
+            # Server may briefly drop connections during --reload or worker restart.
+            time.sleep(poll_interval)
+            continue
         print(f"    {status['completed']}/{status['total']} done, {status['failed']} failed", end="\r")
         if status["ready"]:
             print(f"\n  Ingest complete: {status['completed']} chunks indexed.")
@@ -399,8 +434,17 @@ def run_config(
         latency_ms = resp.get("latency_ms", 0)
         legs       = resp.get("retrieval_info", {}).get("legs", {})
 
-        f1  = token_f1(answer, q["answers"])    if answer else 0.0
-        em  = exact_match(answer, q["answers"]) if answer else 0.0
+        # When answer generation is off, score F1/EM against the retrieved
+        # context text (oracle span scoring). This measures whether the answer
+        # is present in the retrieved chunks — which is what retrieval eval
+        # benchmarks. When generation is on, score against the LLM answer.
+        if answer:
+            score_text = answer
+        else:
+            score_text = " ".join(c["content"] for c in contexts)
+
+        f1  = token_f1(score_text, q["answers"])    if score_text else 0.0
+        em  = exact_match(score_text, q["answers"]) if score_text else 0.0
         hit = retrieval_hit(contexts, q["answers"])
 
         latencies.append(latency_ms)
