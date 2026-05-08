@@ -400,29 +400,21 @@ async def generate_response(
             f"{summary_section}"
         )
 
-        qa_prompt = ChatPromptTemplate.from_messages([
-            ("system", qa_system_prompt),
-            MessagesPlaceholder("chat_history"),
-            ("human", "{input}"),
-        ])
-        qa_messages = qa_prompt.format_prompt(
-            input=standalone_question,
-            context=formatted_context,
-            chat_history=recent_lc_history,
-        ).to_messages()
-
+        # Build OpenAI messages directly — do NOT use ChatPromptTemplate here.
+        # Template formatting parses curly-braces in user content (e.g. LaTeX
+        # citations like {author1, author2}) as variable placeholders, raising
+        # KeyError when the context contains arbitrary document text.
         logger.info("[STEP 4] QA | model=%s | standalone=%r | context_chunks=%d | window_msgs=%d | has_summary=%s",
                     settings.OPENAI_MODEL, standalone_question, len(docs),
                     len(recent_lc_history), bool(existing_summary))
 
-        openai_messages = []
-        for message in qa_messages:
-            role = "user"
-            if isinstance(message, AIMessage):
-                role = "assistant"
-            elif message.type == "system":
-                role = "system"
-            openai_messages.append({"role": role, "content": message.content})
+        openai_messages = [{"role": "system", "content": qa_system_prompt}]
+        for lc_msg in recent_lc_history:
+            if isinstance(lc_msg, HumanMessage):
+                openai_messages.append({"role": "user", "content": lc_msg.content})
+            elif isinstance(lc_msg, AIMessage):
+                openai_messages.append({"role": "assistant", "content": lc_msg.content})
+        openai_messages.append({"role": "user", "content": standalone_question})
 
         openai_client = AsyncOpenAI(
             api_key=settings.OPENAI_API_KEY,
