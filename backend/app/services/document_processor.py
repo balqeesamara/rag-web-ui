@@ -670,7 +670,8 @@ async def _process_document_background_inner(
                 logger.info(f"Task {task_id}: Knowledge graph built in Neo4j")
             except Exception as e:
                 logger.warning(
-                    f"Task {task_id}: Neo4j graph build failed (non-fatal): {e}"
+                    f"Task {task_id}: Neo4j graph build failed (non-fatal): {e}",
+                    exc_info=True
                 )
 
     except Exception as e:

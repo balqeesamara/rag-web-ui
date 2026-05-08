@@ -149,9 +149,6 @@ class Settings(BaseSettings):
     # Number of graph hops to traverse from seed nodes at query time.
     GRAPHRAG_RETRIEVAL_HOPS: int = int(os.getenv("GRAPHRAG_RETRIEVAL_HOPS", "2"))
 
-    # RRF weight for the graph retrieval leg.
-    HYBRID_GRAPH_WEIGHT: float = float(os.getenv("HYBRID_GRAPH_WEIGHT", "0.3"))
-
     @property
     def graphrag_model(self) -> str:
         """Model to use for entity/relationship extraction. Falls back to OPENAI_MODEL."""

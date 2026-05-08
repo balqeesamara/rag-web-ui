@@ -57,17 +57,38 @@ retrieval.py — hybrid_search()
     └── Leg 3: _exact_search()          → MySQL FULLTEXT NATURAL LANGUAGE MODE
                         │
                         ▼
-                   _rrf_merge()  — weighted Reciprocal Rank Fusion
+                   _rrf_merge_candidates()  — weighted Reciprocal Rank Fusion
                         │
                         ▼
     top-K LangchainDocuments
+                        │
+                        ▼ (optional, when GRAPHRAG_ENABLED + use_graph_rag)
+    graph_service.py — enrich_docs_with_graph()
+        └── Look up Chunk node by (document_id, chunk_index) in Neo4j
+            → traverse entity relationships (FROM_CHUNK → Entity -[r]→ Entity)
+            → append [Graph context] triples to each chunk's text
+                        │
+                        ▼
+    reranker.py — cross-encoder reranking (optional, RERANKER_ENABLED)
+                        │
+                        ▼
+    enriched + reranked docs
     │
     ▼
 chat_service.py
     ├── Build prompt with retrieved chunks as context
     ├── Stream response via AsyncOpenAI
-    └── Strip <think>...</think> blocks (reasoning model support)
+    └── Strip <think> blocks (reasoning model support)
 ```
+
+#### GraphRAG architecture note
+
+Neo4j is used **only** for entity/relationship storage and graph-context enrichment — not for vector search. The correct division of responsibility is:
+
+- **Qdrant** — all vector search (dense cosine + SPLADE sparse)
+- **Neo4j** — entity graph traversal, queried by chunk IDs from Qdrant results
+
+This matches the Qdrant+Neo4j reference architecture: vector search finds relevant chunk IDs, those IDs are used to retrieve graph context from Neo4j, the enriched text is then reranked. Neo4j never runs its own vector index.
 
 ---
 
@@ -130,6 +151,7 @@ src/
 | `frontend` | custom (Next.js) | Web UI; Next.js dev server or production build |
 | `qdrant` | `qdrant/qdrant` | Vector database (dense + sparse collections) |
 | `db` | `mysql:8` | Relational data + FULLTEXT chunk index |
+| `neo4j` | `neo4j:5` | Graph DB — entity/relationship storage for GraphRAG enrichment (optional) |
 | `adminer` | `adminer` | MySQL web GUI (dev compose only) |
 
 ---

@@ -1,25 +1,27 @@
 """
-4-leg hybrid retrieval fused with Reciprocal Rank Fusion (RRF):
+3-leg hybrid retrieval fused with Reciprocal Rank Fusion (RRF), with optional
+Neo4j graph enrichment after merge:
 
   Leg 1 — Dense   : Qdrant cosine-similarity search on Qwen3 embeddings
   Leg 2 — Sparse  : Qdrant learned sparse-vector search (SPLADE via FastEmbed)
   Leg 3 — Exact   : MySQL InnoDB FULLTEXT search (BM25/TF-IDF, server-side)
-  Leg 4 — Graph   : Neo4j VectorCypherRetriever (opt-in per chat, requires use_graph_rag=True)
 
-All three base legs are run independently; their rank lists are merged by weighted
-RRF.  Individual legs can be disabled via .env (retrieval only — ingestion
-always indexes all three, so re-enabling a leg needs no re-indexing).
+  Graph enrichment (post-merge, not a scored leg):
+    When GRAPHRAG_ENABLED=true and use_graph_rag=True, after RRF merge the top-K
+    docs are enriched with entity/relationship triples from Neo4j. Neo4j is
+    queried by (document_id, chunk_index) from each doc's Qdrant payload — the
+    cross-reference link established at ingest. Enriched docs then go to the
+    reranker so it sees the expanded context.
 
 Configuration (.env / settings):
   HYBRID_DENSE_WEIGHT          — RRF weight for the dense leg          (default 0.5)
   HYBRID_QDRANT_SPARSE_WEIGHT  — RRF weight for the Qdrant sparse leg  (default 0.3)
   HYBRID_EXACT_WEIGHT          — RRF weight for the MySQL exact leg     (default 0.2)
-  HYBRID_GRAPH_WEIGHT          — RRF weight for the graph leg           (default 0.3)
   RETRIEVAL_TOP_K              — number of documents returned           (default 6)
   RETRIEVAL_DENSE_ENABLED      — enable/disable dense leg               (default true)
   RETRIEVAL_QDRANT_SPARSE_ENABLED — enable/disable sparse leg           (default true)
   RETRIEVAL_EXACT_ENABLED      — enable/disable exact leg               (default true)
-  RETRIEVAL_GRAPH_ENABLED      — enable/disable graph leg               (default true)
+  RETRIEVAL_GRAPH_ENABLED      — enable/disable graph enrichment        (default true)
 
 Absent-leg design
 -----------------
@@ -92,7 +94,6 @@ class _Candidate:
     dense_rank: int = -1           # -1 = absent from this leg
     qdrant_sparse_rank: int = -1
     exact_rank: int = -1
-    graph_rank: int = -1
 
     @property
     def rrf_score(self) -> float:
@@ -103,8 +104,6 @@ class _Candidate:
             score += settings.HYBRID_QDRANT_SPARSE_WEIGHT / (_RRF_K + self.qdrant_sparse_rank)
         if self.exact_rank >= 0:
             score += settings.HYBRID_EXACT_WEIGHT / (_RRF_K + self.exact_rank)
-        if self.graph_rank >= 0:
-            score += settings.HYBRID_GRAPH_WEIGHT / (_RRF_K + self.graph_rank)
         return score
 
 
@@ -267,7 +266,6 @@ def _rrf_merge_candidates(
     dense: Dict[str, "_Candidate"],
     qdrant_sparse: Dict[str, "_Candidate"],
     exact: Dict[str, "_Candidate"],
-    graph: Dict[str, "_Candidate"],
     top_k: int,
 ) -> list["_Candidate"]:
     merged: Dict[str, _Candidate] = {**dense}
@@ -284,23 +282,16 @@ def _rrf_merge_candidates(
         else:
             merged[h] = c
 
-    for h, c in graph.items():
-        if h in merged:
-            merged[h].graph_rank = c.graph_rank
-        else:
-            merged[h] = c
-
     ranked = sorted(merged.values(), key=lambda c: c.rrf_score, reverse=True)
 
     logger.info("[RRF] total unique candidates=%d | returning top_k=%d", len(ranked), top_k)
     for i, c in enumerate(ranked[:top_k]):
         logger.info(
-            "  rrf[%d] score=%.5f dense_rank=%s sparse_rank=%s exact_rank=%s graph_rank=%s text=%r",
+            "  rrf[%d] score=%.5f dense_rank=%s sparse_rank=%s exact_rank=%s text=%r",
             i, c.rrf_score,
             c.dense_rank if c.dense_rank >= 0 else "-",
             c.qdrant_sparse_rank if c.qdrant_sparse_rank >= 0 else "-",
             c.exact_rank if c.exact_rank >= 0 else "-",
-            c.graph_rank if c.graph_rank >= 0 else "-",
             c.doc.page_content[:80],
         )
     return ranked[:top_k]
@@ -336,12 +327,13 @@ async def hybrid_search_with_legs(
             "dense":         {"status": "ok"|"failed"|"disabled", "count": N, "error": str|None},
             "qdrant_sparse": {...},
             "exact":         {...},
-            "graph":         {...},
+            "graph":         {"status": "ok"|"failed"|"disabled", "count": N, "error": str|None},
           },
           "failed_legs": ["dense", ...],
         }
       }
-    Each leg runs independently — a failure in one never blocks the others.
+    Each retrieval leg runs independently — a failure in one never blocks the others.
+    Graph enrichment runs after RRF merge: not a scored leg, just context expansion.
 
     Per-call flags AND with global .env settings: a leg is only enabled when
     both the chat-level flag and the global env flag are True.
@@ -382,46 +374,40 @@ async def hybrid_search_with_legs(
         exact = {}
         legs["exact"] = {"status": "disabled", "count": 0, "error": None}
 
-    graph: Dict[str, _Candidate] = {}
-    if enabled["graph"]:
-        try:
-            from app.services.graph_service import graph_search as _graph_search
-            graph_docs = _graph_search(query_text=query, kb_ids=kb_ids, top_k=pool)
-            for rank, doc in enumerate(graph_docs):
-                h = _content_hash(doc.page_content)
-                if h not in graph:
-                    graph[h] = _Candidate(doc=doc, content_hash=h, graph_rank=rank)
-            legs["graph"] = {"status": "ok", "count": len(graph), "error": None}
-        except Exception as exc:
-            logger.error("[LEG:graph] failed: %s", exc)
-            legs["graph"] = {"status": "failed", "count": 0, "error": str(exc)}
-    else:
-        legs["graph"] = {"status": "disabled", "count": 0, "error": None}
-
     failed_legs = [k for k, v in legs.items() if v["status"] == "failed"]
     if failed_legs:
         logger.warning("hybrid_search_with_legs: failed legs=%s", failed_legs)
 
-    candidates = _rrf_merge_candidates(dense, qdrant_sparse, exact, graph, top_k)
+    candidates = _rrf_merge_candidates(dense, qdrant_sparse, exact, top_k)
 
-    # Annotate each doc with which legs found it — used by confidence scoring
-    # (cross-leg agreement signal). Stored in metadata["_legs"] as a list of
-    # leg names so the scoring module can inspect it without touching internals.
+    # Annotate each doc with which legs found it — used by confidence scoring.
     docs: List[LangchainDocument] = []
     for c in candidates:
         contributing = []
         if c.dense_rank >= 0:         contributing.append("dense")
         if c.qdrant_sparse_rank >= 0: contributing.append("qdrant_sparse")
         if c.exact_rank >= 0:         contributing.append("exact")
-        if c.graph_rank >= 0:         contributing.append("graph")
         c.doc.metadata["_legs"] = contributing
         docs.append(c.doc)
 
-    logger.info("hybrid_search_with_legs returned %d docs | failed_legs=%s", len(docs), failed_legs)
+    logger.info("hybrid_search_with_legs: RRF returned %d docs | failed_legs=%s", len(docs), failed_legs)
+
+    # ── Graph enrichment (post-merge, pre-reranker) ────────────────────────────
+    # Neo4j traversal uses (document_id, chunk_index) from each doc's Qdrant
+    # payload to look up entity relationships — no separate vector search in Neo4j.
+    if enabled["graph"] and docs:
+        try:
+            from app.services.graph_service import enrich_docs_with_graph
+            docs = enrich_docs_with_graph(docs)
+            graph_count = sum(1 for d in docs if d.metadata.get("_graph_triples", 0) > 0)
+            legs["graph"] = {"status": "ok", "count": graph_count, "error": None}
+        except Exception as exc:
+            logger.warning("hybrid_search_with_legs: graph enrichment failed (non-fatal): %s", exc)
+            legs["graph"] = {"status": "failed", "count": 0, "error": str(exc)}
+    else:
+        legs["graph"] = {"status": "disabled", "count": 0, "error": None}
 
     # ── Cross-encoder reranking (optional) ────────────────────────────────────
-    # Applied after RRF merge so the reranker only sees the top-K candidates,
-    # not the full pool. Non-fatal — a reranker failure falls back to RRF order.
     if settings.RERANKER_ENABLED and docs:
         try:
             from app.services.reranker import rerank
@@ -447,7 +433,7 @@ async def hybrid_search(
 ) -> List[LangchainDocument]:
     """Run enabled retrieval legs in parallel (sync calls) and merge via RRF."""
     top_k = settings.RETRIEVAL_TOP_K
-    pool = top_k * 4  # over-fetch so RRF has room to rerank
+    pool = top_k * 4
 
     enabled = {
         "dense": settings.RETRIEVAL_DENSE_ENABLED,
@@ -456,36 +442,26 @@ async def hybrid_search(
         "graph": use_graph_rag and settings.RETRIEVAL_GRAPH_ENABLED,
     }
     logger.info(
-        "hybrid_search | kb_ids=%s top_k=%d legs=%s weights=(%.2f, %.2f, %.2f, %.2f)",
+        "hybrid_search | kb_ids=%s top_k=%d legs=%s weights=(%.2f, %.2f, %.2f)",
         kb_ids, top_k,
         [k for k, v in enabled.items() if v],
         settings.HYBRID_DENSE_WEIGHT,
         settings.HYBRID_QDRANT_SPARSE_WEIGHT,
         settings.HYBRID_EXACT_WEIGHT,
-        settings.HYBRID_GRAPH_WEIGHT,
     )
 
     dense        = _dense_search(query, kb_ids, pool)           if enabled["dense"]          else {}
     qdrant_sparse = _qdrant_sparse_search(query, kb_ids, pool)  if enabled["qdrant_sparse"]  else {}
     exact        = _exact_search(query, kb_ids, db, pool)       if enabled["exact"]          else {}
 
-    graph: Dict[str, _Candidate] = {}
-    if enabled["graph"]:
-        try:
-            from app.services.graph_service import graph_search as _graph_search
-            graph_docs = _graph_search(query_text=query, kb_ids=kb_ids, top_k=pool)
-            for rank, doc in enumerate(graph_docs):
-                h = _content_hash(doc.page_content)
-                if h not in graph:
-                    graph[h] = _Candidate(
-                        doc=doc,
-                        content_hash=h,
-                        graph_rank=rank,
-                    )
-            logger.info("[GRAPH] graph_search returned %d unique candidates", len(graph))
-        except Exception as e:
-            logger.warning("hybrid_search: graph leg failed (non-fatal): %s", e)
+    docs = [c.doc for c in _rrf_merge_candidates(dense, qdrant_sparse, exact, top_k)]
 
-    docs = _rrf_merge(dense, qdrant_sparse, exact, graph, top_k)
+    if enabled["graph"] and docs:
+        try:
+            from app.services.graph_service import enrich_docs_with_graph
+            docs = enrich_docs_with_graph(docs)
+        except Exception as e:
+            logger.warning("hybrid_search: graph enrichment failed (non-fatal): %s", e)
+
     logger.info("hybrid_search returned %d documents", len(docs))
     return docs

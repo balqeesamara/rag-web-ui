@@ -23,16 +23,36 @@ User query
 [chat_service.py] Condense with chat history → standalone question
     │
     ▼
-[retrieval.py] hybrid_search()
+[retrieval.py] hybrid_search_with_legs()
     ├── _dense_search()          → Qdrant cosine similarity (dense vectors)
     ├── _qdrant_sparse_search()  → Qdrant SPLADE sparse vectors
     └── _exact_search()          → MySQL InnoDB FULLTEXT (NATURAL LANGUAGE MODE)
     │          ↓
-    └── _rrf_merge()  → weighted RRF score → top-K LangchainDocuments
+    └── _rrf_merge_candidates()  → weighted RRF score → top-K LangchainDocuments
+    │
+    ▼ (optional: GRAPHRAG_ENABLED=true and use_graph_rag=True)
+[graph_service.py] enrich_docs_with_graph()
+    └── Look up Chunk by (document_id, chunk_index) in Neo4j
+        → traverse entity relationships
+        → append [Graph context] triples to each doc's text
+    │
+    ▼ (optional: RERANKER_ENABLED=true)
+[reranker.py] cross-encoder reranking — threshold filter, no top-N cap
     │
     ▼
 [chat_service.py] Build prompt → stream LLM response
 ```
+
+### GraphRAG enrichment — not a retrieval leg
+
+Graph enrichment runs **after** RRF merge, not as a scored leg alongside dense/sparse/exact. Neo4j is queried by `(document_id, chunk_index)` — the same identifiers stored in every Qdrant point payload, established as a cross-reference link at ingest time.
+
+This matches the Qdrant+Neo4j reference architecture:
+- **Qdrant** finds the relevant chunks via vector search
+- **Neo4j** enriches those chunks with entity/relationship context
+- The enriched text is reranked by the cross-encoder before being sent to the LLM
+
+Neo4j never runs its own vector index — that would duplicate Qdrant's work.
 
 ---
 
