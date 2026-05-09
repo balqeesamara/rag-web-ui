@@ -20,21 +20,6 @@ Retrieval uses **3-leg hybrid search**: dense vector (Qdrant cosine), sparse vec
 
 > **Based on:** This is an opinionated, slimmed-down fork of [rag-web-ui/rag-web-ui](https://github.com/rag-web-ui/rag-web-ui). All credit for the original design and implementation goes to the original authors. The goal of this fork is to serve as a learning resource for understanding the RAG pipeline end-to-end — keeping minimal dependencies, removing abstraction layers, and adding visibility into individual RAG components (retrieval legs, reranking, prompt construction, token flow).
 
-## Screenshots
-
-<div align="center">
-  <img src="https://raw.githubusercontent.com/rag-web-ui/rag-web-ui/main/docs/images/screenshot1.png" alt="Knowledge Base Management" width="800">
-  <p><em>Knowledge Base Management</em></p>
-
-  <img src="https://raw.githubusercontent.com/rag-web-ui/rag-web-ui/main/docs/images/screenshot2.png" alt="Chat Interface" width="800">
-  <p><em>Document Processing</em></p>
-
-  <img src="https://raw.githubusercontent.com/rag-web-ui/rag-web-ui/main/docs/images/screenshot3.png" alt="Document List" width="800">
-  <p><em>Document List</em></p>
-
-  <img src="https://raw.githubusercontent.com/rag-web-ui/rag-web-ui/main/docs/images/screenshot4.png" alt="Chat" width="800">
-  <p><em>Chat with References</em></p>
-</div>
 
 ## Stack
 

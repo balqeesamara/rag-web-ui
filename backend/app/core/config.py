@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     SPLADE_MODEL: str = os.getenv("SPLADE_MODEL", "prithivida/Splade_PP_en_v1")
     # Directory where FastEmbed caches downloaded ONNX models.
     # Mount as a volume so the model survives container restarts.
-    FASTEMBED_CACHE_DIR: str = os.getenv("FASTEMBED_CACHE_DIR", "/tmp/fastembed_cache")
+    FASTEMBED_CACHE_DIR: str = os.getenv("FASTEMBED_CACHE_DIR", "/app/assets/fastembed")
 
     # ── Retrieval ──────────────────────────────────────────────────────────────
     RETRIEVAL_TOP_K: int = int(os.getenv("RETRIEVAL_TOP_K", "6"))

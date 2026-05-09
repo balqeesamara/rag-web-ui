@@ -1,5 +1,15 @@
 "use client";
 
+function generateId(): string {
+  if (typeof crypto !== "undefined" && crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
 import { useEffect, useRef, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Send, User } from "lucide-react";
@@ -258,9 +268,11 @@ export default function ChatPage({ params }: { params: { id: string } }) {
         ? window.localStorage.getItem("token") || ""
         : "";
 
-    const assistantId = crypto.randomUUID();
+    // const assistantId = crypto.randomUUID();
+    const assistantId = generateId();
     const userMessage: Message = {
-      id: crypto.randomUUID(),
+      // id: crypto.randomUUID(),
+      id: generateId(),
       role: "user",
       content: trimmedInput,
     };
